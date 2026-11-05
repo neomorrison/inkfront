@@ -55,7 +55,40 @@ check(!P.buyUnitUpgrade(r, 'brawler'), 'buy: refused when poor');
 r.gold = 500;
 check(P.buyUnitUpgrade(r, 'brawler') && r.units.brawler === 2 && r.gold < 500, 'buy: unit upgrade');
 check(P.badgeCounts(r).units > 0, 'badge: affordable upgrades flagged');
-check(P.todayKey(new Date(2026, 0, 5)) === '2026-01-05', 'todayKey pads month and day');
+check(P.todayKey(new Date(Date.UTC(2026, 0, 5))) === '2026-01-05', 'todayKey pads month and day');
+
+// Round 2: ending flag, Red Ink best time, daily consolation, achievement pay
+import { ACHIEVEMENTS } from '../../src/data/achievements.js';
+{
+  const e = defaultProfile(); Save.data = e;
+  for (const l of ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '4-1', '4-2', '4-3', '4-4', '4-5', '4-6', '5-1', '5-2', '5-3', '5-4', '5-5']) win(e, l);
+  const earlier = win(e, '5-5');
+  check(!earlier.ending, 'ending: not after an ordinary level');
+  const fin = win(defaultProfile(), '5-6', { bossDefeated: true, boss: 'boss_hand' });
+  check(fin.ending === true, 'ending: first win of 5-6 sets summary.ending');
+  const seenAlready = defaultProfile(); Save.data = seenAlready; seenAlready.seen.ending = true;
+  check(!win(seenAlready, '5-6', { bossDefeated: true, boss: 'boss_hand' }).ending, 'ending: not again once seen');
+  const h = defaultProfile(); Save.data = h;
+  win(h, '1-1', { time: 100 });
+  const hs = P.applyBattleResult(h, fakeSession({ kind: 'campaign', levelId: '1-1', hard: true }, { time: 60 }));
+  check(h.levels['1-1'].bestTime === 100 && h.levels['1-1'].bestTimeHard === 60, 'Red Ink win keeps its own best time (' + h.levels['1-1'].bestTime + ' / ' + h.levels['1-1'].bestTimeHard + ')');
+  check(!hs.ending, 'ending: never from Red Ink');
+}
+{
+  const d = defaultProfile(); Save.data = d;
+  const dailyLoss = (time) => P.applyBattleResult(d, fakeSession({ kind: 'daily', date: '2026-01-05' }, { winner: 1, time }));
+  const quick = dailyLoss(10);
+  check(quick.gold === 0 && quick.xp === 0, 'daily loss under 20 s pays nothing');
+  const mid = dailyLoss(60);
+  check(mid.gold > 0 && mid.xp > 0 && mid.gold < 500, 'daily loss pays a small consolation (' + mid.gold + ' gold, ' + mid.xp + ' xp)');
+  const full = dailyLoss(200);
+  check(full.gold >= mid.gold && full.gold <= P.DAILY_CONSOLATION.gold, 'daily consolation scales with time and is capped');
+}
+{
+  const early = ACHIEVEMENTS.filter((a) => ['first_blood', 'untouchable', 'speedrun', 'kaboom', 'big_army'].includes(a.id));
+  check(early.every((a) => a.gold <= 220), 'early achievements pay modestly (' + early.map((a) => a.gold).join('/') + ')');
+  check(ACHIEVEMENTS.find((a) => a.id === 'boss_5').gold >= 1000 && ACHIEVEMENTS.find((a) => a.id === 'endless_30').gold >= 1500, 'big late achievements stay meaningful');
+}
 
 console.log(bad ? `${bad} FAILED` : 'meta logic ok');
 process.exit(bad ? 1 : 0);

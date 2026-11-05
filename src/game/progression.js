@@ -25,6 +25,8 @@ export function runAfterHooks(p, summary = null) {
 
 export const CRATE_GOLD = 300; // paid when every crate hat is already owned
 export const CRATE_EVERY_STARS = 10;
+export const FINAL_LEVEL = '5-6'; // beating the Hand ends the story
+export const DAILY_CONSOLATION = { gold: 75, xp: 30, winXp: 60 };
 
 export function addGold(p, n, why) {
   p.gold = Math.max(0, Math.round(p.gold + n));
@@ -126,10 +128,10 @@ export function markSeen(p, key) {
   return false;
 }
 
+// UTC calendar day, the same key src/game/daily.js saves (lastWin / lastPlayed), so the card
+// and the menu badge agree with the stored result in every time zone.
 export function todayKey(d = new Date()) {
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
+  return d.toISOString().slice(0, 10);
 }
 
 export function skillAvailable(p, sk) {
@@ -261,7 +263,7 @@ export function applyBattleResult(p, session) {
   if (session.opts.kind === 'campaign') {
     const lv = LEVEL_BY_ID[session.opts.levelId];
     const hard = !!session.opts.hard;
-    const rec = p.levels[lv.id] || (p.levels[lv.id] = { stars: 0, hardStars: 0, cleared: false, hardCleared: false, bestTime: 0, plays: 0 });
+    const rec = p.levels[lv.id] || (p.levels[lv.id] = { stars: 0, hardStars: 0, cleared: false, hardCleared: false, bestTime: 0, bestTimeHard: 0, plays: 0 });
     rec.plays++;
     const stars = starsFor(r);
     const prev = hard ? rec.hardStars : rec.stars;
@@ -273,7 +275,9 @@ export function applyBattleResult(p, session) {
     if (win) {
       if (hard) { rec.hardStars = Math.max(rec.hardStars, stars); rec.hardCleared = true; p.stats.hardWins++; }
       else { rec.stars = Math.max(rec.stars, stars); rec.cleared = true; }
-      if (!rec.bestTime || r.time < rec.bestTime) rec.bestTime = Math.round(r.time);
+      // Red Ink keeps its own record so a hard win never overwrites the normal best time.
+      const timeKey = hard ? 'bestTimeHard' : 'bestTime';
+      if (!rec[timeKey] || r.time < rec[timeKey]) rec[timeKey] = Math.round(r.time);
       const base = lv.rewards.gold * (first ? 1 : 0.45);
       summary.gold = Math.round(base * (1 + 0.25 * (stars - 1)) * goldMult);
       summary.xp = Math.round(lv.rewards.xp * (first ? 1 : 0.5));
@@ -284,6 +288,7 @@ export function applyBattleResult(p, session) {
         if (u.hat && unlockHat(p, u.hat)) summary.unlocks.push({ type: 'hat', id: u.hat });
         if (u.mode === 'hard' && !p.hardUnlocked) { p.hardUnlocked = true; summary.unlocks.push({ type: 'mode', id: 'hard' }); }
         if (lv.boss) summary.crates++; // a crate after each boss first clear
+        if (lv.id === FINAL_LEVEL && !p.seen.ending) summary.ending = true; // the story ending, once
       }
       if (!hard) {
         const owed = Math.floor(campaignStars(p) / CRATE_EVERY_STARS) - (p.crateStars || 0);
@@ -305,7 +310,17 @@ export function applyBattleResult(p, session) {
     if (summary.newBest) { p.endless.bestWave = wave; p.stats.endlessBest = wave; }
     p.endless.runs = (p.endless.runs || 0) + 1;
   }
-  if (session.opts.kind === 'daily') summary.date = session.opts.date || todayKey();
+  if (session.opts.kind === 'daily') {
+    summary.date = session.opts.date || todayKey();
+    // Like a campaign defeat: a small consolation scaled by time survived, nothing for a quick give-up.
+    // (The day's 500 gold prize for a win is paid by the daily reward hook in src/game/daily.js.)
+    if (win) summary.xp = DAILY_CONSOLATION.winXp;
+    else {
+      const effort = r.time < 20 ? 0 : Math.min(1, r.time / 120);
+      summary.gold = Math.round(DAILY_CONSOLATION.gold * effort);
+      summary.xp = Math.round(DAILY_CONSOLATION.xp * effort);
+    }
+  }
   for (const hook of REWARD_HOOKS) hook(p, session, summary);
   // Endless pays by wave even if the mode builder did not add a reward.
   if (summary.kind === 'endless' && !summary.gold && summary.wave) summary.gold = Math.round(summary.wave * 30 + Math.max(0, summary.wave - 10) * 20);

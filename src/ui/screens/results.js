@@ -17,15 +17,18 @@ import { icon, unitIcon, hatIcon } from '../../render/icons.js';
 import { fmt, fmtTime } from '../../core/util.js';
 import { ico, dispose, track, countUp, sparks, floatText, setBadge, replay } from './meta_ui.js';
 import './crate.js';
+import './ending.js';
 
 const FEATURE_NAMES = { armory: 'Armory', captain: 'Captain', endless: 'Endless', daily: 'Daily', achievements: 'Trophies' };
 const FEATURE_ICONS = { armory: 'menu_armory', captain: 'menu_captain', endless: 'menu_endless', daily: 'menu_daily', achievements: 'menu_trophy' };
 
-function headline(summary, session) {
+// "Page" is the big moment (level 6 of a chapter, the boss); every other level is just a level.
+function headline(summary, level) {
   const k = summary.kind;
   if (k === 'endless') return { text: summary.wave ? `Wave ${summary.wave}` : 'Run over', sub: 'Run over', tone: 'win' };
   if (k === 'daily') return { text: summary.win ? 'Daily done!' : 'Daily lost', tone: summary.win ? 'win' : 'lose' };
-  return { text: summary.win ? 'Page cleared!' : 'Page lost', tone: summary.win ? 'win' : 'lose' };
+  const noun = level && level.boss ? 'Page' : 'Level';
+  return { text: summary.win ? `${noun} cleared!` : `${noun} lost`, tone: summary.win ? 'win' : 'lose' };
 }
 
 UI.register('results', {
@@ -34,8 +37,16 @@ UI.register('results', {
     const p = Save.data;
     const opts = session.opts;
     const win = summary.win;
-    const hl = headline(summary, session);
     const level = opts.kind === 'campaign' ? LEVEL_BY_ID[opts.levelId] : null;
+    const hl = headline(summary, level);
+
+    // The story ending plays once, right after the Hand falls, then the results come up as usual.
+    if (summary.ending && !p.seen.ending) {
+      p.seen.ending = true;
+      Save.save();
+      UI.modal('ending', { onDone: () => UI.show('results', { session, summary: { ...summary, ending: false } }) });
+      return;
+    }
 
     // ---- animation timeline (skippable)
     const queue = [];
@@ -82,8 +93,7 @@ UI.register('results', {
     const xpTag = h('span.pill.blue', null, '+' + summary.xp + ' XP');
     const xpRow = h('div.rc-row.rc-xp.probe.pre', null,
       h('img.ico', { src: hatIcon(p.hero.hat || 'captain', 96), alt: '' }),
-      h('div.rc-xp-main', null, h('div.rc-xp-top', null, h('span', null, 'Captain '), lvEl, xpTag), h('div.bar', null, xpFill)),
-      h('div.levelup.marker.hidden', null, 'LEVEL UP!'));
+      h('div.rc-xp-main', null, h('div.rc-xp-top', null, h('span', null, 'Captain '), lvEl, h('div.levelup.marker.hidden', null, 'LEVEL UP!'), xpTag), h('div.bar', null, xpFill)));
     const unlocks = h('div.rc-unlocks');
     const achs = h('div.rc-achs');
     const right = h('div.rc-right', null, goldRow, xpRow, unlocks, achs);
@@ -94,23 +104,59 @@ UI.register('results', {
     const armory = featureUnlocked(p, 'armory')
       ? (() => { const b = button([ico('menu_armory', 48), h('span', null, 'Armory')], () => App.go('armory'), 'orange'); if (badgeCounts(p).armory) setBadge(b, true); return b; })()
       : null;
+    // Enter does the primary action, Esc goes back to the map (or the title for the other modes).
+    let primary = null, escAct = null;
+    const act = (fn) => () => fn();
+    const goMap = () => App.goMap(), goTitle = () => App.goTitle(), retry = () => App.startBattle(opts);
     if (summary.kind === 'campaign') {
-      if (win && next) btns.append(button('Next Level', () => App.go('loadout', { levelId: next, hard: !!opts.hard }), 'big green'), button('Retry', () => App.startBattle(opts), 'white'));
-      else if (win) btns.append(button('Retry', () => App.startBattle(opts), 'white'));
-      else btns.append(button('Try Again', () => App.startBattle(opts), 'big green'));
+      const toNext = () => App.go('loadout', { levelId: next, hard: !!opts.hard });
+      if (win && next) { btns.append(button('Next Level', toNext, 'big green'), button('Retry', retry, 'white')); primary = toNext; }
+      else if (win) { btns.append(button('Retry', retry, 'white')); primary = goMap; }
+      else { btns.append(button('Try Again', retry, 'big green')); primary = retry; }
       if (armory) btns.append(armory);
-      btns.append(button('Map', () => App.goMap(), 'blue'));
+      btns.append(button('Map', goMap, win && !next ? 'big blue' : 'blue'));
+      escAct = goMap;
     } else if (summary.kind === 'endless') {
-      btns.append(button('Play Again', () => App.startBattle(opts), 'big green'));
+      btns.append(button('Play Again', retry, 'big green'));
       if (armory) btns.append(armory);
-      btns.append(button('Title', () => App.goTitle(), 'blue'));
+      btns.append(button('Title', goTitle, 'blue'));
+      primary = retry; escAct = goTitle;
     } else {
-      if (!win) btns.append(button('Try Again', () => App.startBattle(opts), 'big green'));
+      if (!win) { btns.append(button('Try Again', retry, 'big green')); primary = retry; } else primary = goTitle;
       if (armory) btns.append(armory);
-      btns.append(button('Title', () => App.goTitle(), win ? 'big blue' : 'blue'));
+      btns.append(button('Title', goTitle, win ? 'big blue' : 'blue'));
+      escAct = goTitle;
     }
+    const onKey = (e) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || !document.body.contains(el)) return;
+      if (UI.hasModal && UI.hasModal()) return;
+      if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+        if (e.target && e.target.closest && e.target.closest('button')) return; // a focused button handles its own Enter
+        e.preventDefault();
+        if (btns.classList.contains('pre')) skip(); else if (primary) act(primary)();
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        if (escAct) act(escAct)();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    track(el, () => document.removeEventListener('keydown', onKey));
 
-    const card = h('div.results-card.tape', { onClick: () => skip() }, h('div.rc-body', null, left, right), btns);
+    // The body scrolls on small screens; a fade and arrow at the bottom say there is more.
+    const body = h('div.rc-body', null, left, right);
+    const more = h('button.rc-more.hidden', { 'data-probe-skip': '', 'aria-label': 'Scroll down', onClick: (ev) => { ev.stopPropagation(); body.scrollBy({ top: body.clientHeight * 0.7, behavior: 'smooth' }); } }, h('span', null, 'More'), h('i'));
+    const scroller = h('div.rc-scroller', null, body, more);
+    const checkMore = () => {
+      const left_ = body.scrollHeight - body.clientHeight - body.scrollTop;
+      more.classList.toggle('hidden', left_ < 6);
+    };
+    body.addEventListener('scroll', checkMore, { passive: true });
+    body.addEventListener('transitionend', checkMore); // rows slide in with a transform, which counts as overflow until they land
+    const ro = new ResizeObserver(checkMore);
+    ro.observe(body); ro.observe(right); ro.observe(left);
+    track(el, () => ro.disconnect());
+
+    const card = h('div.results-card.tape', { onClick: () => skip() }, scroller, btns);
     el.append(card);
 
     // ================= the show
@@ -180,7 +226,7 @@ UI.register('results', {
           const lu = xpRow.querySelector('.levelup');
           lu.classList.remove('hidden'); replay(lu, 'pop');
           sparks(lvEl, 12);
-          floatText(lvEl, 'LEVEL UP!', 'good');
+          floatText(lvEl, 'Lv ' + lvl, 'good');
           xpFill.style.transition = 'none'; xpFill.style.width = '0%';
           void xpFill.offsetWidth;
           setTimeout(() => { xpRow.classList.remove('flash'); seg(n + 1); }, 420);
@@ -200,6 +246,7 @@ UI.register('results', {
       else if (u.type === 'mode') reveals.push({ img: icon('pen_red', 128), tag: 'New mode!', name: 'Red Ink' });
     }
     for (const f of summary.features || []) reveals.push({ img: icon(FEATURE_ICONS[f], 128), tag: 'Now open!', name: FEATURE_NAMES[f], feature: true });
+    if (reveals.length > 3) unlocks.classList.add('many');
     for (const r of reveals) {
       const front = h('div.flip-face.front.card.plain', { 'data-probe-skip': '' }, h('span.marker', null, '?'));
       const back = h('div.flip-face.back.card.plain' + (r.feature ? '.feature' : ''), null,
@@ -227,16 +274,16 @@ UI.register('results', {
       t += 450;
     }
 
-    // Supply crates.
+    // Supply crates: the button lives in the button row (never scrolled out of sight) and shows with it.
+    let crateBtn = null;
     if (summary.crates > 0) {
-      const crateBtn = button([ico('crate', 64), h('span', null, `Open crate${summary.crates > 1 ? 's' : ''}!`)], () => UI.modal('crate'), 'orange crate-open pre');
-      left.append(crateBtn);
-      at(t, (instant) => { crateBtn.classList.remove('pre'); if (!instant) Audio.play('crate'); });
-      t += 300;
+      crateBtn = button([ico('crate', 64), h('span', null, `Open crate${summary.crates > 1 ? 's' : ''}!`)], () => UI.modal('crate'), 'orange crate-open');
+      btns.prepend(crateBtn);
     }
 
-    at(Math.min(t, 1500), () => { btns.classList.remove('pre'); });
-    at(t + 200, () => { skipped = true; });
+    at(Math.min(t, 1500), (instant) => { btns.classList.remove('pre'); if (crateBtn && !instant) Audio.play('crate'); });
+    at(t + 200, () => { skipped = true; checkMore(); });
+    at(t + 700, checkMore);
   },
   unmount(el) { dispose(el); },
 });
