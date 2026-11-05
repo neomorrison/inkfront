@@ -52,7 +52,7 @@ export function makeReticle(root) {
   return {
     el,
     // t: the session.targeting object or null. pointer: { x, y } in CSS px.
-    update(t, cam, pointer, vw, vh) {
+    update(t, cam, pointer, vw) {
       if (!t) { toggleClass(el, 'on', false); return; }
       let cls = 'flag';
       let w = 46, hgt = 120;
@@ -67,7 +67,6 @@ export function makeReticle(root) {
       toggleClass(el, 'on', true);
       const px = pointer.x == null ? vw / 2 : pointer.x;
       const gy = cam.groundY;
-      const py = pointer.y == null ? 0 : pointer.y;
       let top;
       if (cls === 'line') top = 70;
       else if (cls === 'flag') top = gy - hgt + 8;

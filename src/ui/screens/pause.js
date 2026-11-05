@@ -78,15 +78,16 @@ UI.register('pause', {
 
     const card = h('div.pause-card.paper.tape', null,
       h('h1.marker', null, 'Paused'),
-      h('div.pause-main', null,
-        button('Resume', () => session.togglePause(false), 'big green wide'),
-        button('Restart', () => App.startBattle(session.opts), 'blue'),
-        button('How to Play', () => UI.modal('howto', { session, resume: false }), 'yellow'),
-        giveUp,
-        button('Quit to Map', () => App.goMap(), 'white')),
-      toggles,
-      tabs,
-      controls);
+      h('div.pause-body', null,
+        h('div.pause-left', null,
+          h('div.pause-main', null,
+            button('Resume', () => session.togglePause(false), 'big green wide'),
+            button('Restart', () => App.startBattle(session.opts), 'blue'),
+            button('How to Play', () => UI.modal('howto', { session }), 'yellow'),
+            giveUp,
+            button('Quit to Map', () => App.goMap(), 'white')),
+          toggles),
+        h('div.pause-right', null, tabs, controls)));
     el.append(card);
     // Esc / P resume. Closing happens on keydown; Input swallows the matching press on resume.
     const onKey = (e) => {
@@ -105,12 +106,12 @@ export function howtoCard(touch, label, onDone) {
   return h('div.howto-card.paper.tape', null,
     h('h1.marker', null, 'How to Play'),
     h('ul.howto-list', null,
-      item('1', touch ? 'Tap a card to draw a unit. It costs ink.' : 'Click a card (or press 1-9) to draw a unit. It costs ink.'),
-      item('2', 'Draw Scribes first. They carry ink home from the wells.'),
-      item('3', 'Charge sends your army to the enemy fort. Defend holds near yours.'),
-      item('4', touch ? 'Hold the arrows to walk your Captain into the fight.' : 'Walk your Captain with A and D. He fights hard.'),
-      item('5', touch ? 'Tap a spell, then tap the field to cast it.' : 'Press Z, X or C to cast a spell where your pointer is.'),
-      item('6', 'Destroy the enemy fort to win the page.')),
+      item('1', touch ? 'Tap a card to draw a unit. It costs ink.' : 'Click a card or press 1-9 to draw a unit.'),
+      item('2', 'Scribes carry ink home. Draw them first.'),
+      item('3', 'Charge attacks the fort. Defend holds near yours.'),
+      item('4', touch ? 'Hold the arrows to walk your Captain.' : 'Walk your Captain with A and D.'),
+      item('5', touch ? 'Tap a spell, then tap the field.' : 'Press Z, X or C to cast a spell.'),
+      item('6', 'Destroy the enemy fort to win.')),
     button(label, onDone, 'big green'));
 }
 

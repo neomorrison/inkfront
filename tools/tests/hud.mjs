@@ -255,7 +255,7 @@ async function otherTutorials(sizeName) {
   await t.snap('t2-spell-ready');
   await t.click('.hud .spell');
   await page.waitForTimeout(400);
-  check('1-2 asks to aim', /enemy/i.test(await text()), await text());
+  check('1-2 asks to aim', /(enemy|battlefield)/i.test(await text()), await text());
   check('reticle follows the pointer', await page.locator('.hud-reticle.on').count() === 1);
   await t.snap('t2-aim');
   await page.mouse.move(700, 300).catch(() => {});
@@ -573,6 +573,7 @@ async function cameraTest() {
   check('wheel takes manual control again', x3 < x2 && Math.abs(x4 - x3) < 40, `${x2} -> ${x3} -> ${x4}`);
   // Free mode never moves by itself
   await t.click('.hud-sys .btn.cam');
+  await page.waitForTimeout(200);
   check('camera button reads Free', /Free/.test(await page.locator('.hud-sys .btn.cam').innerText()));
   const f0 = await camx();
   await page.waitForTimeout(5500);

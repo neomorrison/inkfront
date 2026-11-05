@@ -54,7 +54,7 @@ const TUTORIALS = {
         target: (t) => t.find('spell:0'), done: (t) => t.targeting || t.total.spell > 0,
       },
       {
-        text: (t) => `Now ${t.touch ? 'tap' : 'click'} the enemy to cast it.`,
+        text: (t) => `Now ${t.touch ? 'tap' : 'click'} ${t.enemyOnScreen() ? 'an enemy' : 'the battlefield'} to cast it.`,
         target: (t) => ({ world: t.enemyX(), label: 'Aim here' }),
         done: (t) => t.total.spell > 0,
         // Cancelled the aim? Go back one step.
@@ -144,11 +144,19 @@ class Tutorial {
   find(key) { return this.hud.find(key); }
   spellName() { const sp = mine(this.b).spells[0]; return sp ? { pencil_rain: 'Pencil Rain' }[sp.id] || 'the spell' : 'the spell'; }
 
-  // Nearest enemy to your fort, else somewhere in front of the enemy fort.
+  // Nearest enemy on screen, else a spot ahead of your army inside the view.
   enemyX() {
+    const cam = this.s.cam;
     let best = null;
-    for (const u of this.b.units) if (u.alive && u.team === 1 && u.type !== 'scribe' && (!best || u.x < best.x)) best = u;
-    return best ? best.x : this.b.teams[1].fort.x - 320;
+    for (const u of this.b.units) {
+      if (u.alive && u.team === 1 && u.type !== 'scribe' && u.x > cam.x + 60 && u.x < cam.x + cam.viewW - 60 && (!best || u.x < best.x)) best = u;
+    }
+    return best ? best.x : cam.x + cam.viewW * 0.6;
+  }
+  enemyOnScreen() {
+    const cam = this.s.cam;
+    for (const u of this.b.units) if (u.alive && u.team === 1 && u.type !== 'scribe' && u.x > cam.x + 60 && u.x < cam.x + cam.viewW - 60) return true;
+    return false;
   }
 
   onEvent(e) {

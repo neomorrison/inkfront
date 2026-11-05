@@ -32,6 +32,7 @@ function mount(el, { session }) {
   try { coarse = matchMedia('(pointer: coarse)').matches; } catch (e) { coarse = false; }
   if (coarse) el.classList.add('touch');
   const tip = makeTooltip(el);
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
   const vignette = h('div.hud-vignette');
   el.append(vignette);
 
@@ -427,7 +428,7 @@ function mount(el, { session }) {
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) banner.classList.remove('show'); }
     if (noticeT > 0) { noticeT -= dt; if (noticeT <= 0) notice.classList.remove('show'); }
     drawMinimap(mapCanvas, b, s.cam, s.r.pal, t0.stance === 'hold' ? t0.flagX : null);
-    reticle.update(s.targeting, s.cam, s.pointer, innerWidth, innerHeight);
+    reticle.update(s.targeting, s.cam, s.pointer, innerWidth);
     tip.tick();
   };
 
