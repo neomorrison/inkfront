@@ -7,7 +7,7 @@
 import { BEHAVIORS } from '../registry.js';
 import { clamp, approach, smooth } from '../../core/util.js';
 import { clampToBlockers } from '../common.js';
-import { initBoss, marchLimit, tickCooldowns, runAct, startAct, actPose, telegraph, groundEnemies, nearestEnemy, densest, hitGround, bossMelee, clearBossAreas } from './boss_kit.js';
+import { initBoss, marchLimit, tickCooldowns, runAct, startAct, actPose, telegraph, groundEnemies, nearestEnemy, densest, hitGround, bossMelee, clearBossAreas, fortFocus, hitFortAt } from './boss_kit.js';
 import { Projectile } from '../projectile.js';
 
 const sgn = (v, d = 1) => Math.sign(v) || d;
@@ -45,6 +45,9 @@ function dashTarget(u, b) {
     const sc = soft + dist * 0.3 + (e.type === 'scribe' ? -300 : 0);
     if (sc > bs) { bs = sc; best = e; }
   }
+  // Close to the player's fort with nobody worth chasing (or now and then anyway): charge the gate.
+  const ff = fortFocus(b, u, 740);
+  if (ff && ff.near && Math.abs(ff.x - u.x) >= 200 && (!best || b.rng.next() < 0.3)) return { x: ff.x };
   return best;
 }
 
@@ -155,9 +158,19 @@ function addSmear(b, u, x) {
   });
 }
 
+// Slam toward the thickest part of the army when it is close, else the nearest unit or the fort gate.
+function slamFocus(b, u) {
+  const c = densest(b, u, 430, 180);
+  if (c) return c;
+  const e = nearestEnemy(b, u);
+  const ff = fortFocus(b, u, 560);
+  if (e && (!ff || !ff.near || Math.abs(e.x - u.x) <= Math.abs(ff.x - u.x))) return e;
+  return ff && ff.near ? ff : e;
+}
+
 function smudgeSlam(u, b, rounds) {
   const esc = u.data.escalated;
-  const tgt = nearestEnemy(b, u);
+  const tgt = slamFocus(b, u);
   const dirn = tgt ? sgn(tgt.x - u.x, u.dir) : u.dir;
   const dist = esc ? 520 : 400, wind = 1.0;
   const x0 = u.x + dirn * (u.radius + 10);
@@ -258,7 +271,7 @@ BEHAVIORS.boss_smudge = {
     if (runAct(u, b, dt)) return;
     if (!u.attacking) {
       if (d.cd.slam <= 0) {
-        const tgt = nearestEnemy(b, u);
+        const tgt = slamFocus(b, u);
         if (tgt && Math.abs(tgt.x - u.x) <= 620) { smudgeSlam(u, b, 1); return; }
         d.cd.slam = 0.6;
       }
@@ -270,14 +283,27 @@ BEHAVIORS.boss_smudge = {
 };
 
 // ================================================================= The Neon Wyrm
-const ALT = 190;
+// Cycle: hover low over the army and breathe (one line per flight), swoop down onto the thickest
+// cluster and stay on the ground for a long window (melee can hit it), stomping, then take off again.
+const ALT = 125; // wings and head stay below the top of a 720 px screen and the boss bar
+const FLY_T = 4.5, FLY_T_ESC = 3.8, GROUND_T = 12, GROUND_T_ESC = 11;
+
+// Where the Wyrm wants to be: over the thickest enemy cluster, else the nearest unit, else the fort.
+function wyrmFocus(b, u) {
+  const c = densest(b, u, 1800, 220);
+  if (c) return { x: c.x, army: true };
+  const e = nearestEnemy(b, u);
+  if (e) return { x: e.x, army: true };
+  const ff = fortFocus(b, u, 1e9);
+  return ff ? { x: ff.x + u.dir * 120, army: false } : null;
+}
 
 function wyrmBreath(u, b, aim, chain) {
   const dirn = sgn(aim.x - u.x, u.dir);
   const len = 460, delay = 1.1, grow = 0.8;
-  const x0 = aim.x - dirn * 140;
+  const x0 = aim.x - dirn * (aim.fort ? 300 : 140);
   u.facing = dirn;
-  u.data.cd.breath = (u.data.escalated ? 3.6 : 5.4) + b.rng.range(0, 1);
+  u.data.cd.breath = ((u.data.escalated ? 3.6 : 5.4) + b.rng.range(0, 1));
   telegraph(b, u, { shape: 'band', kind: 'breath', x: x0 + dirn * len / 2, width: len, delay });
   const dps = 16 * (u.dmg / 70) * u.mod.dmg;
   startAct(u, {
@@ -302,6 +328,10 @@ function wyrmBreath(u, b, aim, chain) {
               const pos = (e.x - this.x0) * this.dirn;
               if (pos >= -e.radius && pos <= reach + e.radius) e.addBuff({ id: 'burn', t: 2, dot: dps, team: this.team, source: this.boss });
             }
+            // The flames scorch the player's fort too when the line reaches it.
+            const f = bb.teams[1 - this.team].fort;
+            const fp = (f.x - this.x0) * this.dirn;
+            if (f.alive && fp >= -f.radius && fp <= reach + f.radius) bb.damageFort(f, dps * 0.25 * 0.35, { source: this.boss, kind: 'blast' });
           },
         });
       }
@@ -315,9 +345,17 @@ function wyrmBreath(u, b, aim, chain) {
   });
 }
 
+// Breath aim: the thickest cluster in range, or the fort when it is close and the army is not.
+function wyrmBreathAim(u, b) {
+  const ff = fortFocus(b, u, 520);
+  const c = densest(b, u, 900, 200);
+  if (ff && ff.near && (!c || b.rng.next() < 0.2)) return { x: ff.x, fort: true };
+  return c || (nearestEnemy(b, u) ? { x: nearestEnemy(b, u).x } : null);
+}
+
 function wyrmLand(u, b) {
   const d = u.data;
-  const delay = 1.1;
+  const delay = 1.2;
   telegraph(b, u, { shape: 'circle', kind: 'land', x: u.x, radius: 190, delay });
   d.mode = 'land';
   startAct(u, {
@@ -335,7 +373,9 @@ function wyrmLand(u, b) {
       d.landed = true;
       d.mode = 'ground';
       d.modeT = 0;
+      d.cd.stomp = 1.6;
       hitGround(b, u, u.x, 190, dmgOf(u, 1.1), { kb: 420, kbUp: 480 });
+      hitFortAt(b, u, u.x, 190, dmgOf(u, 0.6));
       b.emit('bossSlam', { x: u.x, radius: 190, kind: 'land', unit: u, z: u.z });
       u.atkT = 0.6;
       return true;
@@ -343,9 +383,32 @@ function wyrmLand(u, b) {
   });
 }
 
+// On the ground: a telegraphed stomp that catches everything around the Wyrm.
+function wyrmStomp(u, b) {
+  const esc = u.data.escalated;
+  const r = 175, delay = 0.85;
+  u.data.cd.stomp = ((esc ? 3.6 : 4.8) + b.rng.range(0, 1));
+  const x = u.x + u.facing * 40;
+  telegraph(b, u, { shape: 'circle', kind: 'stomp', x, radius: r, delay });
+  startAct(u, {
+    t: 0, fired: false,
+    tick(u, b, dt) {
+      this.t += dt;
+      actPose(u, this.fired ? 0.5 : 0.42);
+      if (!this.fired && this.t >= delay) {
+        this.fired = true;
+        hitGround(b, u, x, r, dmgOf(u, 0.9), { kb: 340, kbUp: 420 });
+        hitFortAt(b, u, x, r, dmgOf(u, 0.4));
+        b.emit('bossSlam', { x, radius: r, kind: 'stomp', unit: u, z: u.z });
+      }
+      return this.t >= delay + 0.5;
+    },
+  });
+}
+
 BEHAVIORS.boss_wyrm = {
   init(u, b) {
-    initBoss(u, b, { cd: { breath: 3.5 } });
+    initBoss(u, b, { cd: { breath: 3.0 } });
     u.flying = true;
     u.radius = 64;
     u.height = 84;
@@ -369,35 +432,36 @@ BEHAVIORS.boss_wyrm = {
     }
     const esc = d.escalated;
     if (d.mode === 'fly') {
-      d.alt = approach(d.alt, ALT, 180 * dt);
+      d.alt = approach(d.alt, ALT, 220 * dt);
       u.y = -d.alt;
       if (runAct(u, b, dt)) return;
-      const e = nearestEnemy(b, u);
-      if (e) {
-        let tx = e.x - u.dir * 170;
-        const lim = marchLimit(b, u, 220);
-        if (lim !== null && (tx - lim) * u.dir > 0) tx = lim;
-        const step = u.speed * (esc ? 1.3 : 1.05) * dt;
+      const foc = wyrmFocus(b, u);
+      const lim = marchLimit(b, u, 450); // lead its own army, never fly in alone
+      if (foc && lim !== null && (foc.x - lim) * u.dir > 0) foc.x = lim;
+      const landing = d.modeT >= (esc ? FLY_T_ESC : FLY_T);
+      if (foc) {
+        // Hover just short of the cluster; once it is time to land, go right on top of it.
+        let tx = landing ? foc.x : foc.x - u.dir * 170;
+        if (!foc.army) tx = foc.x;
+        const far = Math.abs(foc.x - u.x) > 700;
+        const step = u.speed * (far ? 3 : esc ? 1.9 : 1.6) * dt;
         const dx = tx - u.x;
-        u.x += Math.sign(dx) * Math.min(Math.abs(dx), step);
-        if (Math.abs(e.x - u.x) > 30) u.facing = sgn(e.x - u.x);
+        u.x = clamp(u.x + Math.sign(dx) * Math.min(Math.abs(dx), step), 60, b.width - 60);
+        if (Math.abs(foc.x - u.x) > 30) u.facing = sgn(foc.x - u.x);
         u.anim.moving = true;
-        if (d.cd.breath <= 0 && d.alt > ALT * 0.9 && Math.abs(e.x - u.x) <= 720) {
-          const aim = densest(b, u, 900, 200) || { x: e.x };
-          wyrmBreath(u, b, aim, esc ? 2 : 1);
-          return;
+        if (landing && d.alt >= ALT * 0.95 && (Math.abs(tx - u.x) < 60 || d.modeT >= (esc ? FLY_T_ESC : FLY_T) + 6)) { wyrmLand(u, b); return; }
+        if (!landing && d.cd.breath <= 0 && d.alt > ALT * 0.9) {
+          const aim = wyrmBreathAim(u, b);
+          if (aim && Math.abs(aim.x - u.x) <= 720) { wyrmBreath(u, b, aim, esc ? 2 : 1); return; }
         }
-      } else {
-        const ef = b.teams[1 - u.team].fort;
-        u.x += Math.sign(ef.x + 300 - u.x) * Math.min(Math.abs(ef.x + 300 - u.x), u.speed * dt);
       }
-      if (d.modeT >= (esc ? 7 : 9) && d.alt >= ALT * 0.95 && nearestEnemy(b, u)) wyrmLand(u, b);
       return;
     }
     if (d.mode === 'land') { runAct(u, b, dt); return; }
     // On the ground: bite and stomp until it is time to fly again.
+    if (runAct(u, b, dt)) return;
     d.mouthT = u.attacking ? 0.7 : 0;
-    if (d.modeT >= (esc ? 6.5 : 8) && !u.attacking) {
+    if (d.modeT >= (esc ? GROUND_T_ESC : GROUND_T) && !u.attacking) {
       d.mode = 'fly';
       d.modeT = 0;
       u.flying = true;
@@ -406,10 +470,19 @@ BEHAVIORS.boss_wyrm = {
       b.emit('bossRoar', { unit: u, x: u.x, z: u.z, kind: 'takeoff', team: u.team });
       return;
     }
-    bossMelee(u, b, dt, { onHit: (uu, bb) => bb.meleeSplash(uu, 115, dmgOf(uu), true, { kb: uu.kb }) });
+    if (!u.attacking && d.cd.stomp <= 0 && groundEnemies(b, u).some((e) => Math.abs(e.x - u.x) - e.radius <= 230)) { wyrmStomp(u, b); return; }
+    bossMelee(u, b, dt, { onHit: wyrmBite });
   },
   onDeath: onBossDeath,
 };
+
+// The bite: a frontal splash that chews units but only nibbles at the fort.
+function wyrmBite(u, b) {
+  const x = u.x + u.facing * (u.radius + 57);
+  hitGround(b, u, x, 115, dmgOf(u), { kind: 'melee', kb: u.kb });
+  hitFortAt(b, u, x, 115, dmgOf(u, 0.3), 'melee');
+  b.emit('slam', { unit: u, x, radius: 115, team: u.team, z: u.z });
+}
 
 // ================================================================= The Professor
 function professorQuiz(u, b) {
@@ -505,7 +578,9 @@ BEHAVIORS.boss_professor = {
         d.cd.quiz = 1;
       }
       if (d.cd.rain <= 0) {
-        const c = densest(b, u, 1100, 200);
+        // Rain on the thickest cluster; with none in reach, on the player's fort gate.
+        const ff = fortFocus(b, u, 800);
+        const c = densest(b, u, 1100, 200) || (ff && ff.near ? { x: ff.x + u.dir * 70 } : null);
         if (c) { professorRain(u, b, c); return; }
         d.cd.rain = 1.5;
       }
@@ -518,15 +593,26 @@ BEHAVIORS.boss_professor = {
 // ================================================================= The Hand
 const HOVER = 215;
 
-function handSweep(u, b) {
+// What the Hand goes for: the thickest part of the army, or the fort when the army hides next to it
+// (or now and then in phase 2). Returns { x, fort } or null.
+function handFocus(u, b) {
+  const pf = b.teams[1 - u.team].fort;
   const c = densest(b, u, 2600, 200);
+  const hiding = !c || Math.abs(c.x - pf.x) < 460;
+  if (pf.alive && (hiding || (u.data.escalated && b.rng.next() < 0.25))) return { x: c ? Math.min(c.x, pf.x + 260) : pf.x + 120, fort: true, army: !!c };
+  return c ? { x: c.x, fort: false, army: true } : null;
+}
+
+function handSweep(u, b) {
+  const c = handFocus(u, b);
   if (!c) return false;
   const esc = u.data.escalated;
   const dirn = u.dir;
   const len = esc ? 560 : 480, w = esc ? 250 : 220, delay = 2.3, dur = 2.8;
   const pf = b.teams[1 - u.team].fort;
-  let xs = c.x - dirn * len * 0.35;
-  if (xs + dirn * len < pf.x + 230) xs = pf.x + 230 - dirn * len;
+  // Centered on the army so the pass crosses it; aimed to run into the fort when it is the goal.
+  let xs = c.x - dirn * len * 0.5;
+  if (c.fort) xs = pf.x + 30 - dirn * len;
   xs = clamp(xs, 100, b.width - 100);
   u.data.tool = 'eraser';
   telegraph(b, u, { shape: 'sweep', kind: 'erase', x0: xs, dirn, length: len, width: w, delay });
@@ -545,7 +631,7 @@ function handSweep(u, b) {
           d.pressT = 1;
           b.emit('bossSlam', { x: xs, radius: w, kind: 'erase', unit: u, z: u.z });
           this.area = {
-            kind: 'erase', team: u.team, boss: u, x: xs, x0: xs, dirn, len, w, t: 0, dur, hit: new Set(), alive: true, crumbT: 0,
+            kind: 'erase', team: u.team, boss: u, x: xs, x0: xs, dirn, len, w, t: 0, dur, hit: new Set(), alive: true, crumbT: 0, hitFort: false,
             update(bb, d2) {
               this.t += d2;
               const p = smooth(Math.min(1, this.t / this.dur));
@@ -557,6 +643,10 @@ function handSweep(u, b) {
                 const capped = e.isHero || e.hp < e.maxHp * 0.75 ? dmg : Math.min(dmg, e.maxHp * 0.7);
                 bb.damage(e, capped, { source: this.boss, team: this.team, kind: 'magic', dir: this.dirn });
                 bb.emit('erased', { x: e.x, y: e.y - e.height * 0.5, z: e.z, unit: e });
+              }
+              if (!this.hitFort && Math.abs(bb.teams[1 - this.team].fort.x - this.x) <= this.w / 2 + 20) {
+                this.hitFort = true;
+                bb.damageFort(bb.teams[1 - this.team].fort, dmgOf(this.boss, 1.0), { source: this.boss, kind: 'magic' });
               }
               if (this.t >= this.dur) this.alive = false;
             },
@@ -574,11 +664,11 @@ function handSweep(u, b) {
 }
 
 function handStab(u, b, n) {
-  const c = densest(b, u, 2600, 200);
+  const c = handFocus(u, b);
   if (!c) return false;
   const esc = u.data.escalated;
   const r = 110, delay = 1.7;
-  const tx = clamp(c.x + b.rng.range(-40, 40), 80, b.width - 80);
+  const tx = clamp(c.fort ? b.teams[1 - u.team].fort.x + u.dir * 45 : c.x + b.rng.range(-40, 40), 80, b.width - 80);
   u.data.tool = 'pencil';
   telegraph(b, u, { shape: 'circle', kind: 'stab', x: tx, radius: r, delay });
   const dmg = dmgOf(u, 1.6);
@@ -596,6 +686,7 @@ function handStab(u, b, n) {
           d.pressT = 1;
           u.x = tx;
           hitGround(b, u, tx, r, dmg, { kb: 520, kbUp: 640 });
+          hitFortAt(b, u, tx, r, dmgOf(u, 0.8), 'magic');
           b.emit('handStab', { x: tx, radius: r, unit: u, z: u.z });
           b.areas.push({ kind: 'stab', team: u.team, boss: u, x: tx, t: 0, dur: 1.8, alive: true, update(bb, d2) { this.t += d2; if (this.t >= this.dur) this.alive = false; } });
         }
@@ -613,7 +704,8 @@ function handStab(u, b, n) {
 
 function handRedraw(u, b) {
   const esc = u.data.escalated;
-  u.data.cd.redraw = esc ? 22 : 30;
+  u.data.cd.redraw = esc ? 15 : 28;
+  if (esc) u.data.next = 'stab'; // phase 2: stab right after, while the knights march
   u.data.tool = 'pencil';
   startAct(u, {
     t: 0, fired: false,
@@ -624,7 +716,7 @@ function handRedraw(u, b) {
       if (!this.fired && this.t >= 0.8) {
         this.fired = true;
         b.emit('handRedraw', { unit: u, x: u.x, z: u.z });
-        const n = 2;
+        const n = esc ? 3 : 2;
         for (let i = 0; i < n; i++) {
           const x = clamp(u.x + u.dir * (30 + i * 40), 60, b.width - 60);
           b.spawnUnit(u.team, 'eraser_knight', { x, z: 0.3 + i * 0.3, spawnTime: 1.0, summoned: true });
@@ -638,7 +730,12 @@ function handRedraw(u, b) {
 function handPickAttack(u, b) {
   const d = u.data;
   const knights = countOf(b, u.team, 'eraser_knight');
-  const w = { sweep: 3, stab: 3, redraw: d.cd.redraw <= 0 && knights < 4 ? 3 : 0 };
+  if (d.next) {
+    const nx = d.next;
+    d.next = null;
+    if (nx === 'stab' && handStab(u, b, 2)) { d.last = 'stab'; return true; }
+  }
+  const w = { sweep: 3, stab: 3, redraw: d.cd.redraw <= 0 && knights < (d.escalated ? 6 : 4) ? 3 : 0 };
   // Avoid repeating the same attack twice in a row.
   if (d.last && w[d.last] > 0 && Object.values(w).filter((v) => v > 0).length > 1) w[d.last] = 0.6;
   const pick = b.rng.weighted(w);
@@ -681,17 +778,18 @@ BEHAVIORS.boss_hand = {
     d.landed = landed;
     if (acting) {
       runAct(u, b, dt);
-      if (!u.data.act) d.cd.attack = d.escalated ? 5.0 : 6.5;
+      if (!u.data.act) d.cd.attack = d.next ? 0.5 : d.escalated ? 4.2 : 6.0;
       return;
     }
     // Hover and drift over the player's army.
     const c = densest(b, u, 3000, 260);
     const pf = b.teams[1 - u.team].fort;
-    let tx = Math.max(pf.x + 320, c ? c.x - u.dir * 40 : pf.x + 520);
-    const lim = marchLimit(b, u, 460); // stay over its own army's front, not alone over yours
+    // Press toward the fort when the army hides beside it.
+    let tx = Math.max(pf.x + 230, c ? c.x - u.dir * 40 : pf.x + 420);
+    const lim = marchLimit(b, u, 700); // stay near its own army's front, not alone over yours
     if (lim !== null && (tx - lim) * u.dir > 0) tx = lim;
     const far = Math.abs(tx - u.x) > 900;
-    const sp = far ? 230 : d.escalated ? 95 : 75;
+    const sp = far ? 260 : d.escalated ? 125 : 100;
     d.driftV = approach(d.driftV, Math.sign(tx - u.x) * (Math.abs(tx - u.x) > 24 ? sp : 0), 400 * dt);
     u.x += d.driftV * dt;
     u.facing = sgn(d.driftV, u.facing);

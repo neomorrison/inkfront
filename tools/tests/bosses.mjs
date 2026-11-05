@@ -10,8 +10,8 @@ import { LEVEL_BY_ID } from '../../src/data/levels.js';
 import { expectedProfile, botAI } from '../sim.mjs';
 
 const PROPOSED = {
-  boss_wyrm: { hp: +(process.env.WYRM_HP || 6500) },
-  boss_hand: { hp: +(process.env.HAND_HP || 8000) },
+  ...(process.env.WYRM_HP ? { boss_wyrm: { hp: +process.env.WYRM_HP } } : {}),
+  ...(process.env.HAND_HP ? { boss_hand: { hp: +process.env.HAND_HP } } : {}),
 };
 
 const args = process.argv.slice(2);
@@ -124,7 +124,7 @@ const STRONG = { unitLevel: 8, fortLevel: 8, heroLevel: 22 };
 const BOSSES = [
   { level: '1-6', id: 'boss_redline', need: [['bossDash'], ['bossRoar', 'warcry'], ['bossEscalate'], ['telegraph', 'dash']] },
   { level: '2-6', id: 'boss_smudge', need: [['bossSlam', 'slam'], ['bossBelch'], ['bossEscalate'], ['telegraph', 'slam']] },
-  { level: '3-6', id: 'boss_wyrm', need: [['bossBreath'], ['bossSlam', 'land'], ['bossEscalate'], ['telegraph', 'breath'], ['telegraph', 'land']] },
+  { level: '3-6', id: 'boss_wyrm', need: [['bossBreath'], ['bossSlam', 'land'], ['bossSlam', 'stomp'], ['bossEscalate'], ['telegraph', 'breath'], ['telegraph', 'land'], ['telegraph', 'stomp']] },
   { level: '4-6', id: 'boss_professor', need: [['quizStun'], ['bossRoar', 'rain'], ['bossEscalate'], ['telegraph', 'quiz'], ['telegraph', 'rain'], ['spawn', 'chalk_wall']] },
   { level: '5-6', id: 'boss_hand', need: [['bossSlam', 'erase'], ['handStab'], ['handRedraw'], ['bossEscalate'], ['telegraph', 'erase'], ['telegraph', 'stab']] },
 ];
@@ -234,7 +234,20 @@ function bossTests() {
   }
 }
 
+// The Wyrm flies low: wings and head never leave the top of a 720 px screen (and the boss bar).
+function wyrmAltitude() {
+  console.log('wyrm altitude');
+  const b = arena('3-6');
+  b.spawnUnit(0, 'brawler', { x: 900, instant: true });
+  const w = b.spawnUnit(1, 'boss_wyrm', { x: 1400, instant: true });
+  let minY = 0, landed = 0;
+  for (let i = 0; i < 60 * 60; i++) { b.update(1 / 60); minY = Math.min(minY, w.y); if (w.data.landed) landed++; b.events.length = 0; w.hp = w.maxHp; }
+  check(minY >= -141, `wyrm altitude cap 140 px (got ${Math.round(-minY)})`);
+  check(landed > 60 * 12, `wyrm spends real time on the ground (${Math.round(landed / 60)} s of 60)`);
+}
+
 traitTests();
+wyrmAltitude();
 bossTests();
 if (failures) { console.log(failures + ' failure(s)'); process.exit(1); }
 console.log('bosses ok');
