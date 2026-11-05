@@ -598,7 +598,8 @@ const HOVER = 215;
 function handFocus(u, b) {
   const pf = b.teams[1 - u.team].fort;
   const c = densest(b, u, 2600, 200);
-  const hiding = !c || Math.abs(c.x - pf.x) < 460;
+  // Only an army huddled against the fort (closer than the normal defend line) counts as hiding.
+  const hiding = !c || Math.abs(c.x - pf.x) < 300;
   if (pf.alive && (hiding || (u.data.escalated && b.rng.next() < 0.25))) return { x: c ? Math.min(c.x, pf.x + 260) : pf.x + 120, fort: true, army: !!c };
   return c ? { x: c.x, fort: false, army: true } : null;
 }
@@ -646,7 +647,7 @@ function handSweep(u, b) {
               }
               if (!this.hitFort && Math.abs(bb.teams[1 - this.team].fort.x - this.x) <= this.w / 2 + 20) {
                 this.hitFort = true;
-                bb.damageFort(bb.teams[1 - this.team].fort, dmgOf(this.boss, 1.0), { source: this.boss, kind: 'magic' });
+                bb.damageFort(bb.teams[1 - this.team].fort, dmgOf(this.boss, 0.6), { source: this.boss, kind: 'magic' });
               }
               if (this.t >= this.dur) this.alive = false;
             },
@@ -686,7 +687,7 @@ function handStab(u, b, n) {
           d.pressT = 1;
           u.x = tx;
           hitGround(b, u, tx, r, dmg, { kb: 520, kbUp: 640 });
-          hitFortAt(b, u, tx, r, dmgOf(u, 0.8), 'magic');
+          hitFortAt(b, u, tx, r, dmgOf(u, 0.5), 'magic');
           b.emit('handStab', { x: tx, radius: r, unit: u, z: u.z });
           b.areas.push({ kind: 'stab', team: u.team, boss: u, x: tx, t: 0, dur: 1.8, alive: true, update(bb, d2) { this.t += d2; if (this.t >= this.dur) this.alive = false; } });
         }
