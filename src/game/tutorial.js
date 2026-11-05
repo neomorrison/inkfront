@@ -13,6 +13,13 @@ const ARROW_SVG = '<svg viewBox="0 0 52 64"><path d="M14 4h24v28h14L26 62 0 32h1
 const verb = (t) => (t.touch ? 'Tap' : 'Click');
 const mine = (b) => b.teams[0];
 
+const defendLine = (b) => b.teams[0].fort.x + 260; // sim/common.js DEFEND_OFFSET
+function nearestFoeX(b) {
+  let x = 1e9;
+  for (const u of b.units) if (u.alive && u.team === 1 && u.type !== 'scribe' && !u.isBoss && !(u.tags && u.tags.has('structure')) && u.x < x) x = u.x;
+  return x;
+}
+
 function enemyArmy(b) {
   let n = 0;
   for (const u of b.units) if (u.alive && u.team === 1 && u.type !== 'scribe' && !u.isBoss) n++;
@@ -63,15 +70,39 @@ const TUTORIALS = {
       { text: () => 'Nice! Spells are free. They just recharge.', target: () => null, done: (t) => t.stepAge > 4.5, final: true },
     ],
   },
+  // 1-3: the AI really marches at your fort, so every note reacts to what the armies are doing.
   stance: {
+    setup(t) { t.peak = 0; t.reached = false; },
+    tick(t) {
+      const n = enemyArmy(t.b);
+      if (n > t.peak) t.peak = n;
+      if (nearestFoeX(t.b) <= defendLine(t.b) + 330) t.reached = true;
+    },
     steps: [
-      { text: () => 'Enemies are marching in! Press DEFEND to hold the line.', target: (t) => t.find('stance:defend'), done: (t) => t.step.pressedDefend },
       {
-        text: (t) => `${verb(t)} cards to draw Brawlers and stop them.`,
-        target: (t) => t.find('card:' + (t.s.roster[1] || t.s.roster[0])),
-        done: (t) => (t.total.army >= 2 && enemyArmy(t.b) <= 2) || t.stepAge > 40,
+        // They are coming. Tell the player what DEFEND means instead of pressing it for them.
+        min: 2.5,
+        text: (t) => {
+          if (!t.marching()) return 'An enemy army is gathering. Draw Brawlers while you wait.';
+          if (mine(t.b).stance !== 'defend') return 'Enemies are marching in! Press DEFEND to hold the line.';
+          return 'Enemies are marching in! DEFEND keeps your army at the fort. Draw Brawlers.';
+        },
+        target: (t) => (t.marching() && mine(t.b).stance !== 'defend' ? t.find('stance:defend') : t.find('card:' + (t.s.roster[1] || t.s.roster[0]))),
+        done: (t) => t.reached || (t.peak > 0 && enemyArmy(t.b) === 0),
       },
-      { text: () => 'They are breaking. Press CHARGE and finish the job!', target: (t) => t.find('stance:charge'), done: (t) => t.step.charge },
+      {
+        min: 2.5,
+        text: (t) => (mine(t.b).stance === 'charge'
+          ? 'They are at your line! Press DEFEND to pull back, then draw Brawlers.'
+          : `They hit your line! ${verb(t)} cards to draw Brawlers and stop them.`),
+        target: (t) => (mine(t.b).stance === 'charge' ? t.find('stance:defend') : t.find('card:' + (t.s.roster[1] || t.s.roster[0]))),
+        done: (t) => t.attackBroken(),
+      },
+      {
+        text: () => 'The attack is broken. Press CHARGE and finish the job!',
+        target: (t) => t.find('stance:charge'),
+        done: (t) => t.step.charge || mine(t.b).stance === 'charge',
+      },
       {
         text: () => 'Destroy the enemy fort to win!',
         target: (t) => ({ world: t.b.teams[1].fort.x, label: 'Enemy fort' }), done: (t) => !!t.b.result, final: true,
@@ -83,10 +114,13 @@ const TUTORIALS = {
       {
         text: (t) => (t.touch ? 'Hold the arrows to walk your Captain.' : 'Walk your Captain with [A] and [D].'),
         target: (t) => (t.touch ? t.find('move') : t.find('hero')),
-        enter: (t) => { const u = mine(t.b).hero; t.heroX0 = u ? u.x : 0; },
-        done: (t) => { const u = mine(t.b).hero; return !!u && Math.abs(u.x - t.heroX0) > 130; },
+        // Only the player's own steering counts (keys A/D, arrows, touch arrows), never the Captain's own walking.
+        min: 2.5,
+        enter: (t) => { t.steer0 = t.s.steerTotal; },
+        done: (t) => t.s.steerTotal - t.steer0 >= 0.45 && !!mine(t.b).hero,
       },
       {
+        min: 2.5,
         text: () => 'He fights anything he reaches. Lead him to the front line!',
         target: () => null,
         done: (t) => {
@@ -96,7 +130,7 @@ const TUTORIALS = {
           return t.stepAge > 25;
         },
       },
-      { text: (t) => `Nice! Let go and he rejoins the army${t.touch ? '' : ' after a moment'}.`, target: () => null, done: (t) => t.stepAge > 4.5, final: true },
+      { min: 2.5, text: (t) => `Nice! Let go and he rejoins the army${t.touch ? '' : ' after a moment'}.`, target: () => null, done: (t) => t.stepAge > 4.5, final: true },
     ],
   },
 };
@@ -126,6 +160,7 @@ class Tutorial {
     this.arrow = h('div.tut-arrow', { html: ARROW_SVG });
     this.label = h('div.tut-label.marker');
     this.layer = h('div.tut-layer', null, this.ring, this.arrow, this.label, this.note);
+    this.layer.style.visibility = 'hidden'; // shown by the first render (the loop may be held by the how-to card)
     hud.el.append(this.layer);
 
     this.offEv = s.listen((e) => this.onEvent(e));
@@ -152,6 +187,14 @@ class Tutorial {
       if (u.alive && u.team === 1 && u.type !== 'scribe' && u.x > cam.x + 60 && u.x < cam.x + cam.viewW - 60 && (!best || u.x < best.x)) best = u;
     }
     return best ? best.x : cam.x + cam.viewW * 0.6;
+  }
+  // Enemies are really on the move: the nearest one has left its fort.
+  marching() { return nearestFoeX(this.b) < this.b.teams[1].fort.x - 500; }
+  // The attackers are beaten: most of the peak army is dead, or the survivors fell back.
+  attackBroken() {
+    const n = enemyArmy(this.b);
+    if (this.peak > 0 && n <= Math.max(1, Math.round(this.peak * 0.34))) return true;
+    return this.reached && nearestFoeX(this.b) > defendLine(this.b) + 750;
   }
   enemyOnScreen() {
     const cam = this.s.cam;
@@ -221,8 +264,10 @@ class Tutorial {
     const st = this.steps[this.i];
     st.tick && st.tick(this);
     if (this.dead || this.steps[this.i] !== st) return;
-    // The final step of a level goal ends with the battle; an auto step just times out.
-    if (st.done(this)) {
+    // The battle is over (slow-motion beat): the note and arrow go away.
+    if (this.s.ended) { this.destroy(); return; }
+    // A note stays up long enough to read, even when its goal is already met.
+    if (st.done(this) && this.stepAge >= (st.min || 0)) {
       if (st.final && this.i === this.steps.length - 1) { this.finish(); return; }
       this.go(this.i + 1);
       return;

@@ -269,10 +269,8 @@ async function otherTutorials(sizeName) {
   await seenAll(['basics', 'spells', 'hero']);
   await start('1-3');
   await page.waitForTimeout(600);
-  check('1-3 asks for DEFEND', /DEFEND/.test(await text()), await text());
-  await t.click('.hud-stance .btn.blue');
-  await page.waitForTimeout(400);
-  check('1-3 then asks for units', /Brawlers/.test(await text()), await text());
+  check('1-3 starts with the real situation', /(gathering|marching)/i.test(await text()) && !/Press CHARGE/.test(await text()), await text());
+  check('1-3 points the player at units', /Brawlers/.test(await text()), await text());
   await t.snap('t3-stance');
   // 1-4: hero
   await seenAll(['basics', 'spells', 'stance']);
@@ -631,6 +629,338 @@ async function feedbackTest() {
   await t.close();
 }
 scenario('feedback', feedbackTest);
+
+// ------------------------------------------------------------------ QA round fixes
+async function seenOnly(page, skip) {
+  await page.evaluate(async (skip) => {
+    const { Save } = await import('./src/game/save.js');
+    Save.data.seen.howto = true;
+    for (const k of ['basics', 'spells', 'stance', 'hero']) delete Save.data.seen['tut.' + k];
+    for (const k of skip) Save.data.seen['tut.' + k] = true;
+    Save.data.unlockedUnits = ['scribe', 'brawler', 'slinger'];
+    Save.data.loadout = { units: ['brawler', 'slinger'], spells: [] };
+    Save.save();
+  }, skip);
+}
+const startLevel = (page, id) => page.evaluate(async (id) => { const { App } = await import('./src/app.js'); App.startBattle({ kind: 'campaign', levelId: id }); }, id);
+
+async function heroTutorialInput(sizeName) {
+  const t = await open(sizeName);
+  const { page } = t;
+  const text = () => page.locator('.tut-text').innerText();
+  await seenOnly(page, ['basics', 'spells', 'stance']);
+  await startLevel(page, '1-4');
+  await page.waitForTimeout(3600);
+  check(`1-4 walking step does not complete by itself (${sizeName})`, /Walk|Hold the arrows/.test(await text()), await text());
+  // really steer
+  if (t.touch) {
+    const b = await page.locator('.hud-move .hero-move:nth-child(2)').boundingBox();
+    await page.evaluate(({ x, y }) => document.querySelector('.hud-move .hero-move:nth-child(2)').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9, pointerType: 'touch', clientX: x, clientY: y })), { x: b.x + 10, y: b.y + 10 });
+    await page.waitForTimeout(900);
+    await page.evaluate(() => document.querySelector('.hud-move .hero-move:nth-child(2)').dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 9, pointerType: 'touch' })));
+  } else {
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(900);
+    await page.keyboard.up('KeyD');
+  }
+  await page.waitForTimeout(300);
+  check(`1-4 advances after real steering (${sizeName})`, /front line/.test(await text()), await text());
+  // each note stays at least ~2.5 s
+  const born = await page.evaluate(() => window.App.session.battle.time);
+  await page.waitForTimeout(1200);
+  check(`1-4 second note stays readable (${sizeName})`, /front line|Nice/.test(await text()) && (await page.evaluate(() => window.App.session.battle.time)) - born < 2.5 ? /front line/.test(await text()) : true);
+  await t.close();
+}
+scenario('hero tutorial needs steering desktop', () => heroTutorialInput('desktop'));
+scenario('hero tutorial needs steering phone', () => heroTutorialInput('phone'));
+
+async function stanceTutorial() {
+  const t = await open('desktop');
+  const { page } = t;
+  const text = () => page.locator('.tut-text').innerText();
+  await seenOnly(page, ['basics', 'spells', 'hero']);
+  await startLevel(page, '1-3');
+  await page.evaluate(() => { const b = window.App.session.battle; b.teams[1].ai.passive = true; for (const u of b.units) if (u.team === 1) u.x = b.teams[1].fort.x - 20; });
+  await page.waitForTimeout(500);
+  check('1-3 does not claim a march before one starts', !/marching/i.test(await text()) && !/Press CHARGE/.test(await text()), await text());
+  // enemies march in while the army is already on DEFEND
+  await page.evaluate(() => { const b = window.App.session.battle; for (const u of b.units) if (u.team === 1 && u.type !== 'scribe') u.x = 1500; });
+  await page.waitForTimeout(500);
+  const t1 = await text();
+  check('1-3 says enemies are marching and explains DEFEND (already active)', /marching/i.test(t1) && !/Press DEFEND/.test(t1) && /DEFEND/.test(t1), t1);
+  await t.click('.hud-stance .btn.red');
+  await page.waitForTimeout(400);
+  check('1-3 asks for DEFEND when the army is not on it', /Press DEFEND/.test(await text()), await text());
+  await t.click('.hud-stance .btn.blue');
+  await page.waitForTimeout(2700);
+  // they reach the defense line
+  await page.evaluate(() => { const b = window.App.session.battle; let x = b.teams[0].fort.x + 330; for (const u of b.units) if (u.team === 1 && u.type !== 'scribe') { u.x = x; x += 25; } });
+  await page.waitForTimeout(600);
+  check('1-3 advances when they reach the line', /hit your line/i.test(await text()), await text());
+  check('1-3 does not say CHARGE yet', !/Press CHARGE/.test(await text()));
+  await page.waitForTimeout(2300);
+  await page.evaluate(() => { const b = window.App.session.battle; const foes = b.units.filter((u) => u.team === 1 && u.type !== 'scribe' && u.alive); foes.slice(1).forEach((u) => b.kill(u, {})); });
+  await page.waitForTimeout(600);
+  check('1-3 says CHARGE once the attack is broken', /CHARGE/.test(await text()) && /broken/i.test(await text()), await text());
+  await t.snap('t3-broken');
+  await t.close();
+}
+scenario('stance tutorial reacts', stanceTutorial);
+
+async function endedInputs() {
+  const t = await open('desktop');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  const before = await page.evaluate(async () => (await import('./src/game/save.js')).Save.data.settings.speed || 1);
+  const cds0 = await page.evaluate(() => window.App.session.battle.teams[0].spells.map((x) => x.cd));
+  await page.evaluate(() => { const s = window.App.session; for (const sp of s.battle.teams[0].spells) sp.cd = 0; s.battle.end(0, 'test'); });
+  await page.waitForTimeout(300);
+  await page.keyboard.press('KeyT');
+  await page.keyboard.press('KeyQ');
+  await page.keyboard.press('KeyZ');
+  await t.click('.hud-sys .btn:first-child').catch(() => {});
+  await page.waitForTimeout(200);
+  const st = await page.evaluate(async () => {
+    const s = window.App.session;
+    return { speed: s.speed, ts: window.App.loop.timeScale, saved: (await import('./src/game/save.js')).Save.data.settings.speed || 1, ab: s.battle.control[0].heroAbility || null, cast: s.battle.teams[0].spells.some((x) => x.cd > 0) };
+  });
+  check('speed unchanged after the battle ends', st.speed === 1 && st.saved === before && st.ts <= 0.3 + 1e-6, JSON.stringify(st));
+  check('abilities and spells ignored after the end', !st.ab && !st.cast, JSON.stringify(st));
+  await t.close();
+}
+scenario('inputs ignored after the end', endedInputs);
+
+async function endedTutorial() {
+  const t = await open('desktop');
+  const { page } = t;
+  await seenOnly(page, ['basics', 'spells', 'stance']);
+  await startLevel(page, '1-4');
+  await page.waitForTimeout(800);
+  check('tutorial note shows', await page.locator('.tut-note').count() === 1);
+  await page.evaluate(() => window.App.session.battle.end(1, 'test'));
+  await page.waitForTimeout(400);
+  check('tutorial note and arrow hide when the battle ends', await page.locator('.tut-layer').count() === 0);
+  await t.close();
+}
+scenario('tutorial hides at the end', endedTutorial);
+
+async function pauseLayout(sizeName, vp) {
+  const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(`[${sizeName}] pageerror: ${e.stack || e.message}`));
+  await page.goto(url);
+  await page.evaluate(() => localStorage.removeItem('inkfront.save.v1'));
+  await page.reload();
+  await page.waitForFunction(() => window.App && window.App.ready);
+  await page.evaluate(async () => { const { App } = await import('./src/app.js'); App.startBattle({ kind: 'campaign', levelId: '1-1' }); });
+  await page.waitForSelector('.howto-float');
+  await page.waitForTimeout(500);
+  const q = await page.evaluate(() => {
+    const card = document.querySelector('.howto-float .howto-card').getBoundingClientRect();
+    const h1 = document.querySelector('.howto-float h1').getBoundingClientRect();
+    const cards = document.querySelector('.hud-cards').getBoundingClientRect();
+    const tape = 13;
+    return { top: card.top, bottom: card.bottom, h1top: h1.top, cardsTop: cards.top, H: innerHeight, tape };
+  });
+  check(`quick card has bottom margin (${sizeName})`, q.cardsTop - q.bottom >= 8, JSON.stringify(q));
+  check(`quick card heading clear of the tape (${sizeName})`, q.h1top - q.top >= 14, JSON.stringify(q));
+  const t0 = await page.evaluate(() => window.App.session.battle.time);
+  await page.waitForTimeout(700);
+  const t1 = await page.evaluate(() => ({ t: window.App.session.battle.time, held: window.App.loop.paused }));
+  check(`battle waits while the first how-to card is open (${sizeName})`, t1.held && Math.abs(t1.t - t0) < 0.05, JSON.stringify({ t0, t1 }));
+  await page.screenshot({ path: path.join(out, `hud-quick-${sizeName}.png`) });
+  await page.locator('.howto-float button.btn').tap();
+  await page.waitForTimeout(700);
+  const t2 = await page.evaluate(() => ({ t: window.App.session.battle.time, held: window.App.loop.paused }));
+  check(`battle resumes when the card is dismissed (${sizeName})`, !t2.held && t2.t > t1.t + 0.2, JSON.stringify(t2));
+  await page.evaluate(() => window.App.session.togglePause(true));
+  await page.waitForTimeout(300);
+  const r = await page.evaluate(() => {
+    const c = document.querySelector('.pause-card').getBoundingClientRect();
+    const h1 = document.querySelector('.pause-card h1').getBoundingClientRect();
+    const tape = c.top - 13;
+    return { top: c.top, bottom: c.bottom, left: c.left, right: c.right, h1top: h1.top, h1bottom: h1.bottom, H: innerHeight, W: innerWidth, tapeTop: tape, sh: document.querySelector('.pause-card').scrollHeight, ch: document.querySelector('.pause-card').clientHeight };
+  });
+  check(`pause card has a margin and its tape fits (${sizeName})`, r.tapeTop >= 4 && r.bottom <= r.H - 12 && r.left >= 12 && r.right <= r.W - 12 && r.sh <= r.ch + 1, JSON.stringify(r));
+  check(`Paused title stays inside the card (${sizeName})`, r.h1top >= r.top + 8 && r.h1bottom <= r.bottom, JSON.stringify(r));
+  await page.screenshot({ path: path.join(out, `hud-pause-${sizeName}.png`) });
+  await page.locator('.pause-main .btn.yellow').tap();
+  await page.waitForTimeout(300);
+  const stack = await page.evaluate(() => ({ pauseVisible: getComputedStyle(document.querySelector('.modal-pause')).display !== 'none', howto: document.querySelectorAll('.modal-howto .howto-card').length, label: document.querySelector('.modal-howto .btn').innerText }));
+  check(`How to Play replaces the pause card (${sizeName})`, !stack.pauseVisible && stack.howto === 1 && /Back/i.test(stack.label), JSON.stringify(stack));
+  await page.screenshot({ path: path.join(out, `hud-pause-howto-${sizeName}.png`) });
+  await page.locator('.modal-howto .btn').tap();
+  await page.waitForTimeout(300);
+  const back = await page.evaluate(() => ({ pauseVisible: getComputedStyle(document.querySelector('.modal-pause')).display !== 'none', howto: document.querySelectorAll('.modal-howto').length, paused: window.App.session.paused }));
+  check(`Back returns to the pause card (${sizeName})`, back.pauseVisible && back.howto === 0 && back.paused, JSON.stringify(back));
+  await ctx.close();
+}
+scenario('pause + how-to layout 844x390', () => pauseLayout('844', { width: 844, height: 390 }));
+scenario('pause + how-to layout 667x375', () => pauseLayout('667', { width: 667, height: 375 }));
+
+async function quitLabels() {
+  const t = await open('desktop');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  await page.evaluate(() => window.App.session.togglePause(true));
+  await page.waitForTimeout(200);
+  check('campaign pause says Quit to Map', /Quit to Map/i.test(await page.locator('.pause-main').innerText()));
+  await page.evaluate(async () => { const { App } = await import('./src/app.js'); App.startBattle({ kind: 'endless' }); });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.App.session.togglePause(true));
+  await page.waitForTimeout(200);
+  const label = await page.locator('.pause-main').innerText();
+  check('endless pause says Quit to Title, not Map', /Quit to Title/i.test(label) && !/Map/i.test(label), label);
+  await page.locator('.pause-main .btn:has-text("Quit to Title")').click();
+  await page.waitForTimeout(400);
+  check('Quit to Title goes to the title', await page.locator('.screen-title').count() === 1);
+  await t.close();
+}
+scenario('quit label matches destination', quitLabels);
+
+async function tooltips() {
+  const t = await open('desktop');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  await page.hover('.ucard[data-unit="slinger"]');
+  await page.waitForTimeout(250);
+  const shown = await page.evaluate(() => { const e = document.querySelector('.hud-tip'); const r = e.getBoundingClientRect(); const row = document.querySelector('.hud-cards').getBoundingClientRect(); return { show: e.classList.contains('show'), bottom: r.bottom, rowTop: row.top }; });
+  check('card tooltip sits just above the card row', shown.show && shown.bottom <= shown.rowTop, JSON.stringify(shown));
+  await page.mouse.down(); await page.mouse.up();
+  await page.waitForTimeout(150);
+  check('tooltip closes on click', await page.locator('.hud-tip.show').count() === 0);
+  await page.mouse.move(640, 300);
+  await page.hover('.ucard[data-unit="archer"]');
+  await page.waitForTimeout(250);
+  check('tooltip shows again on a fresh hover', await page.locator('.hud-tip.show').count() === 1);
+  await page.waitForTimeout(5000);
+  check('tooltip times out by itself', await page.locator('.hud-tip.show').count() === 0);
+  await page.hover('.hud-spells .spell');
+  await page.waitForTimeout(250);
+  const sp = await page.evaluate(() => { const e = document.querySelector('.hud-tip').getBoundingClientRect(); const a = [...document.querySelectorAll('.hud-abil .ability')].map((x) => x.getBoundingClientRect()); const hit = a.some((r) => !(e.right < r.left || e.left > r.right || e.bottom < r.top || e.top > r.bottom)); return { hit, tipBottom: e.bottom, abilTop: Math.min(...a.map((r) => r.top)) }; });
+  check('spell tooltip does not cover the Captain abilities', !sp.hit, JSON.stringify(sp));
+  await t.snap('tip-spell');
+  await t.close();
+}
+scenario('tooltips', tooltips);
+
+async function inkFloatAndMax() {
+  const t = await open('desktop');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  await page.evaluate(() => { window.App.session.battle.emit('deposit', { team: 0, amount: 20, x: 300, z: 0 }); });
+  await page.waitForTimeout(150);
+  const f = await page.evaluate(() => {
+    const fl = document.querySelector('.hud-float').getBoundingClientRect();
+    const n = document.querySelector('.chip.ink b').getBoundingClientRect();
+    const badge = document.querySelector('.hud-hero .lv').getBoundingClientRect();
+    const ov = (a, b) => !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+    return { onNumber: ov(fl, n), onBadge: ov(fl, badge) };
+  });
+  check('ink pop does not cover the ink number or the Captain badge', !f.onNumber && !f.onBadge, JSON.stringify(f));
+  await page.evaluate(() => { const t0 = window.App.session.battle.teams[0]; t0.ink = t0.inkCap; });
+  await page.waitForTimeout(300);
+  check('MAX tag shows at the ink cap', await page.locator('.chip.ink.maxed .max-tag').isVisible());
+  check('ink full hint shows', /Ink full/.test(await page.locator('.hud-notice').innerText()) && await page.locator('.hud-notice.show').count() === 1);
+  await page.evaluate(() => { const t0 = window.App.session.battle.teams[0]; t0.ink = 100; });
+  await page.waitForTimeout(200);
+  check('MAX tag hides below the cap', !(await page.locator('.chip.ink .max-tag').isVisible()));
+  await t.close();
+}
+scenario('ink pop and cap', inkFloatAndMax);
+
+async function phoneSky() {
+  const t = await open('phone');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  await page.evaluate(() => { for (const s of window.App.session.battle.teams[0].spells) s.cd = 0; });
+  await t.click('.hud .spell');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { const b = window.App.session.battle; b.teams[0].ink = 0; b.emit('denied', { team: 0, id: 'brawler', reason: 'ink' }); });
+  await page.waitForTimeout(250);
+  const g = await page.evaluate(() => {
+    const hint = document.querySelector('.target-hint').getBoundingClientRect();
+    const note = document.querySelector('.hud-notice').getBoundingClientRect();
+    return { hint: [hint.top, hint.bottom], note: [note.top, note.bottom], ground: window.App.session.cam.groundY, hintText: document.querySelector('.target-hint').innerText, W: innerWidth, hl: hint.left, hr: hint.right };
+  });
+  check('phone: hint and notice sit in the sky above the ground row', g.hint[1] < g.ground - 40 && g.note[1] < g.ground - 40 && g.note[0] >= g.hint[1] - 2, JSON.stringify(g));
+  check('phone: hint is short', g.hintText.length <= 34 && !/Click|Esc/.test(g.hintText), g.hintText);
+  await t.snap('phone-hint');
+  await t.close();
+}
+scenario('phone hint in the sky', phoneSky);
+
+async function orientationHold() {
+  const t = await open('phone');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  const time = () => page.evaluate(() => window.App.session.battle.time);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+  const a = await time();
+  await page.waitForTimeout(600);
+  check('portrait overlay pauses the battle', (await time()) - a < 0.05 && await page.evaluate(() => window.App.loop.paused));
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(700);
+  const b2 = await time();
+  await page.waitForTimeout(500);
+  check('landscape again resumes it', (await time()) - b2 > 0.2);
+  // self-paused stays paused through a rotation
+  await page.evaluate(() => window.App.session.togglePause(true));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(400);
+  check('own pause menu survives a rotation', await page.evaluate(() => window.App.session.paused && window.App.loop.paused) && await page.locator('.pause-card').count() === 1);
+  await t.close();
+}
+scenario('portrait auto-pause', orientationHold);
+
+async function minimapDrag() {
+  const t = await open('desktop');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  const box = await page.locator('canvas.minimap').boundingBox();
+  const cx = () => page.evaluate(() => window.App.session.cam.x);
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2);
+  await page.mouse.down();
+  const c1 = await cx();
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2, { steps: 6 });
+  const c2 = await cx();
+  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height / 2, { steps: 6 });
+  const c3 = await cx();
+  await page.mouse.up();
+  check('minimap scrubs while dragging', c2 > c1 + 100 && c3 > c2 + 100, [c1, c2, c3].join(' '));
+  await t.close();
+}
+scenario('minimap drag', minimapDrag);
+
+async function bigScreen() {
+  const t = await open('hd');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  const m = await page.evaluate(() => ({ card: document.querySelector('.ucard').getBoundingClientRect().width, top: document.querySelector('.hud-top').getBoundingClientRect().height, chip: document.querySelector('.chip.ink').getBoundingClientRect().height }));
+  check('HUD scales up at 1920x1080', m.card >= 95 && m.chip >= 50, JSON.stringify(m));
+  await overlapProbe(t, 'hd zoom');
+  await t.snap('hd-zoom');
+  await t.close();
+}
+scenario('big screen scaling', bigScreen);
+
+async function endlessStall() {
+  const t = await open('desktop');
+  const { page } = t;
+  await richBattle(t, '1-2');
+  await page.evaluate(async () => { const { App } = await import('./src/app.js'); App.startBattle({ kind: 'endless' }); });
+  await page.waitForFunction(() => { const e = window.App.session.battle.endless; return e && e.state === 'fight'; }, null, { timeout: 30000 });
+  await page.waitForTimeout(300);
+  check('no stall hint right away', !/CHARGE to finish/.test(await page.locator('.hud-banner').innerText()));
+  await page.evaluate(() => { window.App.session.battle.time += 30; });
+  await page.waitForTimeout(400);
+  check('stalled wave shows the CHARGE hint', /Press CHARGE to finish the wave/.test(await page.locator('.hud-banner').innerText()), await page.locator('.hud-banner').innerText());
+  await t.close();
+}
+scenario('endless stall hint', endlessStall);
 
 const wanted = scenarios.filter((s) => !only || s.name.includes(only));
 for (const s of wanted) {

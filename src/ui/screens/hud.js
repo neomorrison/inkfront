@@ -32,6 +32,7 @@ function mount(el, { session }) {
   try { coarse = matchMedia('(pointer: coarse)').matches; } catch (e) { coarse = false; }
   if (coarse) el.classList.add('touch');
   const tip = makeTooltip(el);
+  const isTouch = () => el.classList.contains('touch');
   el.addEventListener('contextmenu', (e) => e.preventDefault());
   const vignette = h('div.hud-vignette');
   el.append(vignette);
@@ -40,9 +41,10 @@ function mount(el, { session }) {
   const inkVal = h('b', null, '0');
   const inkRate = h('small', null, '');
   const popVal = h('b', null, '0/0');
-  const inkChip = h('div.chip.ink', null, h('img', { src: icon('ink'), alt: '' }), inkVal, inkRate);
+  const inkMax = h('em.max-tag', null, 'MAX');
+  const inkChip = h('div.chip.ink', null, h('img', { src: icon('ink'), alt: '' }), inkVal, inkRate, inkMax);
   const popChip = h('div.chip.pop', null, h('img', { src: icon('pop'), alt: '' }), popVal);
-  tip.attach(inkChip, () => '<h4>Ink</h4>Spend ink to draw units. Scribes carry more ink home from the wells.');
+  tip.attach(inkChip, () => '<h4>Ink</h4>Spend ink to draw units. Scribes carry more ink home from the wells.' + (t0.ink >= t0.inkCap - 0.5 ? '<div class="bad">Ink is full. Spend it or upgrade.</div>' : ''));
   tip.attach(popChip, () => '<h4>Army size</h4>How many units you can have at once. Upgrade Barracks in the Armory for more.');
   const res = h('div.hud-res', null, inkChip, popChip);
   const mapCanvas = h('canvas.minimap');
@@ -81,7 +83,7 @@ function mount(el, { session }) {
     heroFace = h('div.hero-face', {
       onPointerdown: (e) => { e.preventDefault(); s.followHero(); },
     }, portrait, respawn, h('div.bar.hero-hp', null, heroHp));
-    tip.attach(heroFace, () => '<h4>The Captain</h4>Walk him with A and D. Click to center the camera on him.');
+    tip.attach(heroFace, () => '<h4>The Captain</h4>' + (isTouch() ? 'Hold the arrows to walk him. Tap to center the camera on him.' : 'Walk him with A and D. Click to center the camera on him.'));
     el.append(h('div.hud-hero', null, heroFace, h('div.lv', null, String(hero.level || 1))));
   }
 
@@ -147,10 +149,10 @@ function mount(el, { session }) {
       if (!c.ok && c.reason === 'ink') status = `<div class="bad">Need ${Math.ceil(price - t0.ink)} more ink</div>`;
       else if (!c.ok && c.reason === 'pop') status = '<div class="bad">Army is full</div>';
       else if (!c.ok && c.reason === 'scribes') status = '<div class="bad">Scribe limit reached</div>';
-      else status = '<div class="good">Click to draw. Right-click to cancel one.</div>';
+      else status = isTouch() ? '<div class="good">Tap to draw a unit.</div>' : '<div class="good">Click to draw. Right-click to cancel one.</div>';
       const lv = t0.unitLevels[id] || 1;
       return `<h4>${def.name} <span>${KEYS[i] || ''}</span></h4>${def.desc}<div class="stats">Cost ${price} ink | Draw ${b.buildTime(0, id).toFixed(1)}s | Level ${lv}<br>HP ${def.hp} | Damage ${def.dmg}</div>${status}`;
-    });
+    }, () => cardRow);
     return entry;
   });
   const cardRow = h('div.hud-cards.interactive', null, cards.map((c) => c.card));
@@ -164,7 +166,7 @@ function mount(el, { session }) {
       'data-spell': i,
       onPointerdown: (e) => { e.preventDefault(); if (e.pointerType === 'touch') el.classList.add('touch'); s.beginSpell(i); },
     }, h('img', { src: icon('spell_' + sp.id), alt: def.name }), h('div.key', null, SPELL_KEYS[i]), cd, num);
-    tip.attach(btn, () => `<h4>${def.name} <span>${SPELL_KEYS[i]}</span></h4>${def.desc}<div class="stats">${sp.cd > 0 ? 'Ready in ' + Math.ceil(sp.cd) + 's' : 'Ready. Click it, then click the battlefield.'}</div>`);
+    tip.attach(btn, () => `<h4>${def.name} <span>${SPELL_KEYS[i]}</span></h4>${def.desc}<div class="stats">${sp.cd > 0 ? 'Ready in ' + Math.ceil(sp.cd) + 's' : (isTouch() ? 'Ready. Tap it, then tap the battlefield.' : 'Ready. Click it, then click the battlefield.')}</div>`, () => rightCol);
     return { btn, cd, num, sp };
   });
   const spellBox = h('div.hud-spells.interactive', null, spells.map((x) => x.btn));
@@ -179,7 +181,7 @@ function mount(el, { session }) {
         'data-ability': id,
         onPointerdown: (e) => { e.preventDefault(); if (e.pointerType === 'touch') el.classList.add('touch'); s.heroAbility(id); },
       }, h('img', { src: icon('ability_' + id), alt: ab.name }), h('div.key', null, ab.key), cd, num);
-      tip.attach(btn, () => `<h4>${ab.name} <span>${ab.key}</span></h4>${ab.desc}`);
+      tip.attach(btn, () => `<h4>${ab.name} <span>${ab.key}</span></h4>${ab.desc}`, () => rightCol);
       abilBox.append(btn);
       abil.push({ id, ab, btn, cd, num });
     }
@@ -192,7 +194,8 @@ function mount(el, { session }) {
   const hint = h('div.target-hint.note.hidden', null, hintText);
   const notice = h('div.hud-notice.note', null, '');
   const center = h('div.hud-center', null, cardRow, hint, notice);
-  el.append(h('div.hud-bottom', null, h('div.hud-left', null, moveBox, stanceBox), center, h('div.hud-right', null, abilBox, spellBox)));
+  const rightCol = h('div.hud-right', null, abilBox, spellBox);
+  el.append(h('div.hud-bottom', null, h('div.hud-left', null, moveBox, stanceBox), center, rightCol));
 
   const banner = h('div.hud-banner.marker.outline');
   const reticle = makeReticle(el);
@@ -207,14 +210,16 @@ function mount(el, { session }) {
     bannerT = secs;
   };
   let noticeT = 0;
-  const showNotice = (text, secs = 1.6) => {
+  const showNotice = (text, secs = 1.6, tone = '') => {
     notice.textContent = text;
+    notice.classList.toggle('info', tone === 'info');
     notice.classList.add('show');
     noticeT = secs;
   };
   const floatAt = (node, text) => {
+    // Beside and below the chip, drifting down, so the number and the Captain badge stay readable.
     const r = node.getBoundingClientRect();
-    const f = h('div.hud-float', { style: { left: r.left + r.width / 2 + 'px', top: r.bottom - 6 + 'px' } }, text);
+    const f = h('div.hud-float', { style: { left: r.right + 30 + 'px', top: r.bottom + 2 + 'px' } }, text);
     el.append(f);
     setTimeout(() => f.remove(), 1000);
   };
@@ -296,19 +301,32 @@ function mount(el, { session }) {
   window.addEventListener('contextmenu', noMenu);
   document.addEventListener('gesturestart', noGesture);
   document.addEventListener('gesturechange', noGesture);
-  mapCanvas.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
+  // Minimap: tap to jump, press and drag to scrub.
+  let scrubbing = null;
+  const scrubTo = (e) => {
     const r = mapCanvas.getBoundingClientRect();
     s.camTouch();
-    s.cam.centerOn(((e.clientX - r.left) / r.width) * b.width);
+    s.cam.centerOn(clamp((e.clientX - r.left) / r.width, 0, 1) * b.width);
+  };
+  mapCanvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    scrubbing = e.pointerId;
+    try { mapCanvas.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointers */ }
+    scrubTo(e);
   });
+  mapCanvas.addEventListener('pointermove', (e) => { if (scrubbing === e.pointerId) scrubTo(e); });
+  const scrubEnd = (e) => { if (scrubbing === e.pointerId) scrubbing = null; };
+  mapCanvas.addEventListener('pointerup', scrubEnd);
+  mapCanvas.addEventListener('pointercancel', scrubEnd);
+  mapCanvas.addEventListener('lostpointercapture', scrubEnd);
 
   const offTarget = bus.on('targeting', (t) => {
     toggleClass(hint, 'hidden', !t);
     canvas.style.cursor = t ? 'crosshair' : '';
     if (t) {
-      const verb = el.classList.contains('touch') ? 'Tap' : 'Click';
-      hintText.textContent = (t.kind === 'flag' ? `${verb} the battlefield to plant your flag` : `${verb} the battlefield to cast ${SPELLS[t.id].name}`) + (el.classList.contains('touch') ? '. Tap the button again to cancel' : '. Esc cancels');
+      tip.hide();
+      if (isTouch()) hintText.textContent = t.kind === 'flag' ? 'Tap the field for your flag' : `Tap the field to cast ${SPELLS[t.id].name}`;
+      else hintText.textContent = (t.kind === 'flag' ? 'Click the battlefield to plant your flag' : `Click the battlefield to cast ${SPELLS[t.id].name}`) + '. Esc cancels';
     }
     spells.forEach((x, i) => toggleClass(x.btn, 'armed', t && t.kind === 'spell' && t.slot === i));
     if (t && coarse) { s.pointer.x = null; s.pointer.y = null; }
@@ -317,7 +335,8 @@ function mount(el, { session }) {
   const offEv = s.listen((e) => {
     if (e.type === 'banner') showBanner(e.text);
     else if (e.type === 'bossArrive') showBanner(UNITS[e.id].name + '!', 3);
-    else if (e.type === 'waveStart') { showBanner('Wave ' + e.wave, 2); retrigger(waveChip, 'pop'); }
+    else if (e.type === 'waveStart') { showBanner('Wave ' + e.wave, 2); retrigger(waveChip, 'pop'); lastKillT = b.time; }
+    else if (e.type === 'death') lastKillT = b.time;
     else if (e.type === 'waveClear') showNotice('Wave ' + e.wave + ' cleared', 2);
     else if (e.type === 'draftOffer') { s.openDraft(e.offer || (b.endless && b.endless.offer) || []); }
     else if (e.type === 'deposit' && e.team === 0) {
@@ -340,6 +359,9 @@ function mount(el, { session }) {
   if (b.level) showBanner(`${b.level.id}  ${b.level.name}`, 2.4);
 
   // ---- per-frame refresh, cheap: only touches changed values
+  let lastKillT = 0; // endless: last time anything died, to spot a stalled wave
+  let wasFull = false;
+  let lastFullHint = -99;
   let lastBossHp = 1;
   let lastBoss = null;
   let lastWave = -1;
@@ -347,6 +369,10 @@ function mount(el, { session }) {
     setText(inkVal, fmt(t0.ink));
     setText(inkRate, '+' + t0.income.toFixed(1) + '/s');
     setText(popVal, `${Math.round(t0.pop)}/${t0.popCap}`);
+    const full = t0.inkCap != null && t0.ink >= t0.inkCap - 0.5;
+    toggleClass(inkChip, 'maxed', full);
+    if (full && !wasFull && b.time - lastFullHint > 20) { lastFullHint = b.time; showNotice('Ink full: spend it or upgrade', 2.6, 'info'); }
+    wasFull = full;
     const fortFrac = clamp(t0.fort.hp / t0.fort.maxHp, 0, 1);
     setStyle(myBar, 'width', fortFrac * 100 + '%');
     setStyle(foeBar, 'width', clamp(b.teams[1].fort.hp / b.teams[1].fort.maxHp, 0, 1) * 100 + '%');
@@ -367,6 +393,11 @@ function mount(el, { session }) {
     if (en) {
       setText(waveChip, en.state === 'break' || en.state === 'draft' ? `Wave ${en.wave} cleared` : `Wave ${en.wave}, ${en.enemiesLeft ?? 0} left`);
       if (en.wave !== lastWave) { lastWave = en.wave; retrigger(waveChip, 'pop'); }
+      // A wave with no kills for ~25 s: tell the player how to finish it.
+      if (en.state === 'fight' && !s.ended && t0.stance !== 'charge' && b.time - lastKillT > 25) {
+        lastKillT = b.time;
+        showBanner('Press CHARGE to finish the wave', 4);
+      }
     }
     setText(speedBtn, s.speed + 'x');
     setText(camBtn, s.camMode === 'follow' ? 'Follow' : 'Free');
@@ -434,11 +465,24 @@ function mount(el, { session }) {
 
   // First battle only: a small dismissable card. The battle keeps running behind it.
   let quick = null;
-  const closeQuick = () => { if (quick) { quick.remove(); quick = null; markHowtoSeen(); } };
+  const closeQuick = () => {
+    if (!quick) return;
+    quick.remove();
+    quick = null;
+    window.removeEventListener('keydown', quickKey);
+    s.hold('howto', false);
+    markHowtoSeen();
+  };
+  const quickKey = (e) => {
+    if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); closeQuick(); }
+  };
   const showQuickCard = () => {
     if (quick) return;
     quick = h('div.howto-float', null, howtoCard(el.classList.contains('touch'), "Let's go", closeQuick));
     el.append(quick);
+    // Reading moment: the battle waits until the card is dismissed.
+    s.hold('howto', true);
+    window.addEventListener('keydown', quickKey);
   };
 
   const find = (key) => {
@@ -473,6 +517,7 @@ function mount(el, { session }) {
       document.removeEventListener('gesturestart', noGesture);
       document.removeEventListener('gesturechange', noGesture);
       clearPress();
+      window.removeEventListener('keydown', quickKey);
       quick = null;
       offTarget();
       offEv();

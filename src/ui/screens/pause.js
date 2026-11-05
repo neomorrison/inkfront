@@ -19,11 +19,11 @@ const KEYBOARD = [
 const TOUCH = [
   ['Cards', 'Tap to draw a unit'],
   ['Arrows', 'Hold to walk the Captain'],
-  ['Stances', 'Defend, Hold (then tap the field), Charge'],
-  ['Long-press', 'Hold a spot on the field to plant a flag'],
-  ['Spells', 'Tap the spell, then tap the battlefield'],
-  ['Drag', 'Scroll the battlefield, or tap the minimap'],
-  ['Camera', 'Follow tracks the action. Free stays put.'],
+  ['Stances', 'Defend, Hold, Charge'],
+  ['Long-press', 'Plant a flag on the field'],
+  ['Spells', 'Tap a spell, then the field'],
+  ['Drag', 'Scroll, or tap the minimap'],
+  ['Camera', 'Follow tracks the action'],
 ];
 
 // Settings live in the save: music/sfx are volumes, shake is a flag. A toggle remembers the last volume.
@@ -83,9 +83,16 @@ UI.register('pause', {
           h('div.pause-main', null,
             button('Resume', () => session.togglePause(false), 'big green wide'),
             button('Restart', () => App.startBattle(session.opts), 'blue'),
-            button('How to Play', () => UI.modal('howto', { session }), 'yellow'),
+            button('How to Play', () => {
+              // The how-to card replaces the pause card; Back brings it back.
+              el.style.display = 'none';
+              UI.modal('howto', { session, back: () => { el.style.display = ''; } });
+            }, 'yellow'),
             giveUp,
-            button('Quit to Map', () => App.goMap(), 'white')),
+            // Campaign levels belong to the map; Endless, Daily and the rest return to the title like their results do.
+            session.kind === 'campaign'
+              ? button('Quit to Map', () => App.goMap(), 'white')
+              : button('Quit to Title', () => App.goTitle(), 'white')),
           toggles),
         h('div.pause-right', null, tabs, controls)));
     el.append(card);
@@ -121,9 +128,9 @@ export function markHowtoSeen() {
 
 // From the pause menu: a modal on top of the pause card.
 UI.register('howto', {
-  mount(el, { session }) {
-    const done = () => { markHowtoSeen(); UI.closeModal('howto'); };
-    el.append(howtoCard(session.hud && session.hud.touch, 'Got it', done));
+  mount(el, { session, back }) {
+    const done = () => { markHowtoSeen(); UI.closeModal('howto'); back && back(); };
+    el.append(howtoCard(session.hud && session.hud.touch, back ? 'Back' : 'Got it', done));
     const onKey = (e) => {
       if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); done(); }
     };
