@@ -523,14 +523,14 @@ function handSweep(u, b) {
   if (!c) return false;
   const esc = u.data.escalated;
   const dirn = u.dir;
-  const len = esc ? 580 : 500, w = esc ? 270 : 240, delay = 1.8, dur = 2.0;
+  const len = esc ? 560 : 480, w = esc ? 250 : 220, delay = 2.3, dur = 2.8;
   const pf = b.teams[1 - u.team].fort;
   let xs = c.x - dirn * len * 0.35;
   if (xs + dirn * len < pf.x + 230) xs = pf.x + 230 - dirn * len;
   xs = clamp(xs, 100, b.width - 100);
   u.data.tool = 'eraser';
   telegraph(b, u, { shape: 'sweep', kind: 'erase', x0: xs, dirn, length: len, width: w, delay });
-  const dmg = dmgOf(u, 2.0);
+  const dmg = dmgOf(u, 1.6);
   startAct(u, {
     t: 0, phase: 0, area: null,
     tick(u, b, dt) {
@@ -553,7 +553,9 @@ function handSweep(u, b) {
               for (const e of groundEnemies(bb, this.boss)) {
                 if (this.hit.has(e.id) || Math.abs(e.x - this.x) > this.w / 2 + e.radius * 0.5) continue;
                 this.hit.add(e.id);
-                bb.damage(e, dmg, { source: this.boss, team: this.team, kind: 'magic', dir: this.dirn });
+                // Fair but scary: one pass never erases a healthy unit outright.
+                const capped = e.isHero || e.hp < e.maxHp * 0.75 ? dmg : Math.min(dmg, e.maxHp * 0.7);
+                bb.damage(e, capped, { source: this.boss, team: this.team, kind: 'magic', dir: this.dirn });
                 bb.emit('erased', { x: e.x, y: e.y - e.height * 0.5, z: e.z, unit: e });
               }
               if (this.t >= this.dur) this.alive = false;
@@ -575,11 +577,11 @@ function handStab(u, b, n) {
   const c = densest(b, u, 2600, 200);
   if (!c) return false;
   const esc = u.data.escalated;
-  const r = 120, delay = 1.5;
+  const r = 110, delay = 1.7;
   const tx = clamp(c.x + b.rng.range(-40, 40), 80, b.width - 80);
   u.data.tool = 'pencil';
   telegraph(b, u, { shape: 'circle', kind: 'stab', x: tx, radius: r, delay });
-  const dmg = dmgOf(u, 2.0);
+  const dmg = dmgOf(u, 1.6);
   startAct(u, {
     t: 0, fired: false,
     tick(u, b, dt) {
@@ -679,7 +681,7 @@ BEHAVIORS.boss_hand = {
     d.landed = landed;
     if (acting) {
       runAct(u, b, dt);
-      if (!u.data.act) d.cd.attack = d.escalated ? 4.0 : 5.5;
+      if (!u.data.act) d.cd.attack = d.escalated ? 5.0 : 6.5;
       return;
     }
     // Hover and drift over the player's army.
