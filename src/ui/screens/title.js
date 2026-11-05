@@ -6,7 +6,7 @@ import { App } from '../../app.js';
 import { Save } from '../../game/save.js';
 import { Audio } from '../../audio/audio.js';
 import { LEVEL_BY_ID } from '../../data/levels.js';
-import { featureUnlocked, FEATURE_GATES, nextPlayableLevel, badgeCounts, levelCleared } from '../../game/progression.js';
+import { featureUnlocked, FEATURE_GATES, nextPlayableLevel, badgeCounts } from '../../game/progression.js';
 import { ico, setBadge, goldChip, dispose, track } from './meta_ui.js';
 import { icon } from '../../render/icons.js';
 import './crate.js';

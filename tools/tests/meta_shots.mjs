@@ -78,6 +78,7 @@ const SCREENS = [
   ['settings-save', 'mid', "App.go('settings', { tab: 'save' })"],
   ['settings-controls', 'mid', "App.go('settings', { tab: 'controls' })"],
   ['daily', 'mid', "App.go('daily')"],
+  ['daily-info', 'mid', "App.go('daily', { info: { faction: 'neon', modifiers: ['night', 'swarm'], units: ['brawler', 'slinger', 'archer', 'spearman', 'shieldbearer', 'medic'], unitLevel: 6, spells: ['pencil_rain', 'coffee_spill', 'ruler_smash'], reward: 500 } })"],
   ['endless', 'late', "App.go('endless_menu')"],
   ['crate', 'mid', "App.go('title'); UI.modal('crate')"],
   ['results-win', 'mid', RESULTS_WIN],

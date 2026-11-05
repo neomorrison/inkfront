@@ -2,6 +2,7 @@
 // Everything here only builds DOM; styles live in css/screens.css.
 import { h, button } from '../dom.js';
 import { bus } from '../../core/events.js';
+import { UI } from '../ui.js';
 import { Save } from '../../game/save.js';
 import { Audio } from '../../audio/audio.js';
 import { icon } from '../../render/icons.js';
@@ -36,6 +37,18 @@ export function dispose(el) {
 export function onBus(el, type, fn) {
   track(el, bus.on(type, fn));
 }
+// Escape = Back on menu screens (ignored while a modal such as the crate or confirm box is open).
+export function onEsc(el, fn) {
+  const h2 = (e) => {
+    if (e.code !== 'Escape' || (UI.hasModal && UI.hasModal())) return;
+    if (!document.body.contains(el)) return;
+    e.preventDefault();
+    fn();
+  };
+  document.addEventListener('keydown', h2);
+  track(el, () => document.removeEventListener('keydown', h2));
+}
+
 export function later(el, fn, ms) {
   const id = setTimeout(fn, ms);
   track(el, () => clearTimeout(id));

@@ -13,7 +13,7 @@ import { isLevelUnlocked, nextPlayableLevel, chapterUnlocked, campaignStars, CRA
 import { DOODLE_DRAW } from '../../render/world.js';
 import { PAGES } from '../../data/pages.js';
 import { icon, unitIcon } from '../../render/icons.js';
-import { ico, header, tabBar, goldChip, dispose, starRow } from './meta_ui.js';
+import { ico, header, tabBar, goldChip, dispose, starRow, onEsc, track } from './meta_ui.js';
 
 // Node centers in percent of the board: a gentle zig-zag toward the boss.
 const SPOTS = [[9, 66], [26, 32], [43, 66], [59, 32], [74, 64], [90, 44]];
@@ -181,6 +181,8 @@ UI.register('map', {
       tabs.el,
       h('div.sheet.plain.map-sheet', null, side, board));
     draw();
+    onEsc(el, () => App.goTitle());
+    track(el, () => { if (board.__ro) board.__ro.disconnect(); });
   },
   unmount(el) { dispose(el); },
 });

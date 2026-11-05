@@ -15,7 +15,7 @@ import { SPELLS } from '../../data/spells.js';
 import { HAT_BY_ID } from '../../data/hats.js';
 import { todayKey } from '../../game/progression.js';
 import { icon, unitIcon, hatIcon } from '../../render/icons.js';
-import { ico, header, goldChip, dispose, later, replay } from './meta_ui.js';
+import { ico, header, goldChip, dispose, replay, onEsc } from './meta_ui.js';
 
 const DAILY_REWARD = 500;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -88,7 +88,7 @@ UI.register('daily', {
       h('div.sheet.plain.mode-sheet', null,
         h('div.mode-main', null, today, h('div.dl-actions', null, play, h('div.dl-reward.chip.gold.probe', null, h('img.ico', { src: icon('gold', 48), alt: '' }), '+' + reward))),
         h('div.mode-side', null, streakCard)));
-    later(el, () => {}, 0);
+    onEsc(el, () => App.goTitle());
   },
   unmount(el) { dispose(el); },
 });
@@ -124,9 +124,10 @@ UI.register('endless_menu', {
               track)),
           h('div.dl-actions', null, start)),
         h('div.mode-side', null,
-          h('div.dl-card.card.plain.dl-streak.grow', null,
-            h('div.dl-streak-top', null, ico('menu_trophy', 96), h('div', null, h('div.dl-big.marker', null, best ? `Wave ${best}` : 'No runs yet'), h('div.small-note', null, 'Best run'))),
+          h('div.dl-card.card.plain.dl-streak.grow.center-card', null,
+            h('div.wave-ring', null, h('b.marker', null, best ? String(best) : '-'), h('span.marker', null, 'Best wave')),
             h('div.small-note', null, `${p.endless.runs || 0} run${(p.endless.runs || 0) === 1 ? '' : 's'} so far. Gold grows with every wave.`)))));
+    onEsc(el, () => App.goTitle());
   },
   unmount(el) { dispose(el); },
 });

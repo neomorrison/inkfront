@@ -13,7 +13,7 @@ import { SPELL_MAX_LEVEL, spellValue } from '../../data/spells.js';
 import { buyUnitUpgrade, buyFortUpgrade, buySpellUpgrade, badgeCounts, markSeen, canAffordUnit } from '../../game/progression.js';
 import { icon, unitIcon } from '../../render/icons.js';
 import { fmt } from '../../core/util.js';
-import { ico, header, tabBar, goldChip, dispose, pips, floatText, sparks, replay, setBadge, onBus } from './meta_ui.js';
+import { ico, header, tabBar, goldChip, dispose, pips, floatText, sparks, replay, setBadge, onBus, onEsc } from './meta_ui.js';
 
 const hpAt = (def, lv) => Math.round(def.hp * (1 + UNIT_LEVEL.hpPer * (lv - 1)));
 const dmgAt = (def, lv) => Math.round(def.dmg * (1 + UNIT_LEVEL.dmgPer * (lv - 1)) * 10) / 10;
@@ -25,7 +25,8 @@ const SPELL_STAT = {
 function spellStat(id, key, v) {
   const unit = SPELL_STAT[key] ? SPELL_STAT[key][1] : '';
   if (unit === '%' || (id === 'highlighter' && key === 'dmg')) return '+' + Math.round(v * 100) + '%';
-  return fmt(v) + unit;
+  const n = Math.round(v * 10) / 10;
+  return n.toLocaleString('en-US') + unit;
 }
 
 function unlockHintFor(kind, id) {
@@ -241,7 +242,7 @@ UI.register('armory', {
       header({ title: 'Armory', tone: 'orange', onBack: () => App.goTitle(), right: [gold.el] }),
       tabs.el,
       h('div.sheet.plain.arm-sheet', null, body));
-    onBus(el, 'gold', () => {});
+    onEsc(el, () => App.goTitle());
     draw();
   },
   unmount(el) { dispose(el); },

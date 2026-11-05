@@ -5,7 +5,7 @@ import { App } from '../../app.js';
 import { Save } from '../../game/save.js';
 import { Audio } from '../../audio/audio.js';
 import { setArmyHats } from '../../game/progression.js';
-import { ico, header, tabBar, dispose, replay } from './meta_ui.js';
+import { header, tabBar, dispose, replay, onEsc } from './meta_ui.js';
 
 // Small confirm modal used for destructive actions.
 UI.register('confirm', {
@@ -143,6 +143,7 @@ UI.register('settings', {
       tabs.el,
       h('div.sheet.plain.set-sheet', null, body));
     draw();
+    onEsc(el, () => App.goTitle());
   },
   unmount(el) { Save.save(); dispose(el); },
 });

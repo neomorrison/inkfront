@@ -12,7 +12,7 @@ import { achievementProgress, achievementCounts, statValue } from '../../game/ac
 import { campaignStars } from '../../game/progression.js';
 import { icon, hatIcon } from '../../render/icons.js';
 const fmt = (n) => Math.floor(n).toLocaleString('en-US');
-import { ico, header, tabBar, goldChip, dispose } from './meta_ui.js';
+import { ico, header, tabBar, goldChip, dispose, onEsc } from './meta_ui.js';
 
 function fmtPlay(sec) {
   const m = Math.floor(sec / 60), hr = Math.floor(m / 60);
@@ -89,6 +89,7 @@ UI.register('achievements', {
       tabs.el,
       h('div.sheet.plain.ach-sheet', null, body));
     draw();
+    onEsc(el, () => App.goTitle());
   },
   unmount(el) {
     // Viewing clears the red "!" on new achievements.

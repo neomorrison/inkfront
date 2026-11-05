@@ -74,9 +74,18 @@ async function run(vpName, vp) {
     await page.waitForSelector('.hud', { timeout: 8000 });
     await settle(1200);
     check(await page.evaluate(() => !!window.App.session && !window.App.session.isDemo), 'battle: started from loadout');
+    check(await page.evaluate(() => !!window.App.session.ach), 'achievements: battle trackers attached');
 
-    // ---------- forced win -> results
-    await page.evaluate(() => window.App.session.battle.end(0));
+    // ---------- forced win -> results (with synthetic events for the achievement trackers)
+    await page.evaluate(() => {
+      const s = window.App.session;
+      const emit = (e) => s.listeners.forEach((fn) => fn(e, s));
+      for (let i = 0; i < 7; i++) emit({ type: 'death', t: 0, killer: { type: 'bomber', team: 0, id: 77 }, team: 1, x: 100 });
+      for (let i = 0; i < 3; i++) emit({ type: 'death', t: 0, killer: { type: 'bomber', team: 0, id: 77 }, team: 0, x: 100 });
+      emit({ type: 'bomberBlast', team: 0, enemies: 2, friendly: 1 });
+      emit({ type: 'spell', t: 0, team: 0, id: 'coffee_spill', x: 0, level: 1 });
+      s.battle.end(0);
+    });
     await page.waitForSelector('.screen-results', { timeout: 10000 });
     await settle(5600);
     check(await page.locator('.screen-results .stamp.in').count() === 1, 'results: stamp landed');
@@ -84,6 +93,7 @@ async function run(vpName, vp) {
     const g = await profile((p) => p.gold);
     check(g > 0, 'results: gold paid (' + g + ')');
     check(await profile((p) => p.levels['1-1'] && p.levels['1-1'].cleared), 'results: 1-1 cleared in save');
+    check(await profile((p) => p.stats.bomberMulti === 7 && p.stats.friendlyBombs === 4), 'trackers: bomber kills and friendly blasts recorded');
     check(await profile((p) => p.unlockedUnits.includes('slinger')), 'results: Slinger unlocked');
     check(await page.locator('.screen-results .flipcard.flipped').count() >= 2, 'results: unlock cards flipped (unit + new menu)');
     check(await page.locator('.screen-results .rc-ach').count() >= 1, 'results: achievement shown');

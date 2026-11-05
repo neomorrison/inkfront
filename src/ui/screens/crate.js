@@ -6,7 +6,7 @@ import { Audio } from '../../audio/audio.js';
 import { openCrate, equipHat } from '../../game/progression.js';
 import { HAT_BY_ID } from '../../data/hats.js';
 import { icon, hatIcon } from '../../render/icons.js';
-import { ico, later, dispose, sparks } from './meta_ui.js';
+import { later, dispose, sparks } from './meta_ui.js';
 
 UI.register('crate', {
   mount(el) {

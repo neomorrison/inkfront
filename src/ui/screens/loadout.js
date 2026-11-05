@@ -11,7 +11,7 @@ import { SPELLS, SPELL_ORDER, MAX_SPELL_SLOTS } from '../../data/spells.js';
 import { FACTIONS } from '../../data/factions.js';
 import { heroXpToNext } from '../../data/hero.js';
 import { icon, unitIcon, hatIcon } from '../../render/icons.js';
-import { ico, header, goldChip, dispose, starRow, setBadge, replay } from './meta_ui.js';
+import { ico, header, goldChip, dispose, starRow, setBadge, replay, onEsc } from './meta_ui.js';
 
 const SPELL_KEYS = ['Z', 'X', 'C'];
 
@@ -173,6 +173,7 @@ UI.register('loadout', {
       h('div.sheet.plain.lo-sheet', null, intel, army, right));
     drawArmy();
     drawSpells();
+    onEsc(el, () => App.goMap());
   },
   unmount(el) { dispose(el); },
 });

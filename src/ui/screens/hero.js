@@ -7,9 +7,9 @@ import { Save } from '../../game/save.js';
 import { Audio } from '../../audio/audio.js';
 import { HERO_SKILLS, HERO_BRANCHES, HERO_ABILITIES, heroXpToNext, HERO_MAX_LEVEL } from '../../data/hero.js';
 import { HATS } from '../../data/hats.js';
-import { spendHeroPoint, respecHero, equipHat, setArmyHats, skillAvailable, badgeCounts, markSeen } from '../../game/progression.js';
+import { spendHeroPoint, respecHero, equipHat, setArmyHats, badgeCounts, markSeen } from '../../game/progression.js';
 import { icon, unitIcon, hatIcon } from '../../render/icons.js';
-import { ico, header, tabBar, goldChip, dispose, pips, floatText, sparks, replay, setBadge } from './meta_ui.js';
+import { ico, header, tabBar, goldChip, dispose, pips, floatText, sparks, replay, onEsc } from './meta_ui.js';
 
 const BRANCH_ICON = { blade: 'sword', banner: 'upgrade_pop', quill: 'upgrade_scribes' };
 const BRANCH_TONE = { blade: 'pink', banner: 'blue', quill: 'green' };
@@ -167,6 +167,7 @@ UI.register('hero', {
       sheet);
     drawLeft();
     drawRight();
+    onEsc(el, () => App.goTitle());
   },
   unmount(el) { dispose(el); },
 });

@@ -118,7 +118,13 @@ export function checkAchievements(p, { toast = true } = {}) {
   if (earned.length) {
     Save.save();
     bus.emit('achievement', earned);
-    if (toast) earned.forEach((e, i) => setTimeout(() => toastAchievement(e), i * 650));
+    if (toast) {
+      const show = () => earned.forEach((e, i) => setTimeout(() => toastAchievement(e), i * 650));
+      if (UI.hasModal('crate')) {
+        // Do not cover the crate reveal: show the toasts once it closes.
+        const off = bus.on('modalClosed', (m) => { if (m.name === 'crate') { off(); show(); } });
+      } else show();
+    }
   }
   return earned;
 }

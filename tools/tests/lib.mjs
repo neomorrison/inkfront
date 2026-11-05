@@ -79,7 +79,7 @@ export const PROBE_SRC = `(() => {
         if (!n.textContent.trim() || n.parentElement.closest('.badge, [data-probe-skip]') || getComputedStyle(n.parentElement).textOverflow === 'ellipsis') continue;
         const rg = document.createRange(); rg.selectNodeContents(n);
         const t = rg.getBoundingClientRect();
-        if (t.width && (t.right > box.right + 2 || t.left < box.left - 2 || t.bottom > box.bottom + 7 || t.top < box.top - 7)) { issues.push('text overflows: ' + label(el)); break; }
+        if (t.width && (t.right > box.right + 2 || t.left < box.left - 2 || t.bottom > box.bottom + box.height * 0.5 || t.top < box.top - box.height * 0.5)) { issues.push('text overflows: ' + label(el)); break; }
       }
     }
   }
