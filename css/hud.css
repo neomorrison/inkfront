@@ -290,6 +290,8 @@
   .target-hint { top: calc(var(--sub-top) + 62px); }
   .hud-notice { top: calc(var(--sub-top) + 62px); }
   .target-hint:not(.hidden) ~ .hud-notice { top: calc(var(--sub-top) + 98px); }
+  /* A tutorial note owns the top of the sky band; notices drop below it. */
+  .hud:has(.tut-note) .hud-notice { top: calc(var(--sub-top) + 112px); }
   .tut-note { font-size: 17px; line-height: 20px; padding: 5px 12px 6px; max-width: min(430px, 56vw); top: calc(var(--sub-top) + 26px); }
   .tut-skip { top: -14px; }
   .pause-card { padding: 20px 20px 14px 50px; gap: 6px; width: min(760px, calc(100vw - 44px)); max-height: calc(100vh - 44px); }

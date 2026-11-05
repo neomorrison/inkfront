@@ -104,6 +104,9 @@ try {
   const startBtn = page.locator('.screen-loadout button.btn:has-text("Battle"), .screen-loadout button.btn:has-text("Start")');
   if (await startBtn.count()) { await snap('loadout'); await (mobile ? startBtn.first().tap() : startBtn.first().click()); await page.waitForTimeout(800); }
   await snap('battle-start');
+  // The very first battle opens with a how-to card that holds the game until dismissed.
+  const howto = page.locator('button:has-text("Let\'s go")');
+  if (await howto.count()) { if (mobile) await howto.first().tap(); else await howto.first().click(); await page.waitForTimeout(400); }
   const cards = page.locator('.ucard');
   const n = await cards.count();
   console.log('unit cards:', n);
