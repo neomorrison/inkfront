@@ -85,6 +85,8 @@ export function dailyConfig(opts = {}, profile = null) {
     roster: ['scribe', ...info.units],
     unitLevelOverride: DAILY_UNIT_LEVEL,
   });
+  // A fair start whatever the modifiers say: at least 320 ink for the first draws.
+  player.startInk = Math.max(player.startInk || 0, 320);
   const rush = info.modifiers.includes('rush');
   const level = { id: 'daily', faction: info.faction, enemy: enemyBlock(info.faction, info.power, { rush }), win: 'fort', script: [] };
   const ch = CHAPTERS.find((c) => c.faction === info.faction);

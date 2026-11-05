@@ -27,49 +27,51 @@ export const MODIFIERS = {
 //   income, fortHp, startInk, army (maxArmy), turret (tower dmg)   multipliers
 //   aggression added (lower = attacks sooner); firstAttack seconds added; bossAt seconds added
 //   bossHp, bossDmg  multipliers on the level's boss (written into enemy.mods.byUnit)
+//   waves  multiplier on the seconds between enemy attack waves (lower = more pressure)
 // Scopes combine in this order: all, chapter (1-5), single level id, auto (written by the tuner).
 export const TUNE = {
-  all: { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1 },
+  all: { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1, waves: 1 },
   chapter: {}, // e.g. { 3: { level: -1 } }
   level: {}, // hand overrides, same keys as `all`
   // Written by `node tools/tune.mjs --write`: one dial per level found by bisection against the bot.
   auto: {
     // AUTOTUNE:BEGIN
-    '1-1': {income: 1, startInk: 1, army: 1, fortHp: 1, turret: 1, level: 0},
-    '1-2': {income: 1.145, startInk: 1.099, army: 1.114, fortHp: 1.077, turret: 1.049, level: 0},
-    '1-3': {income: 1.289, startInk: 1.195, army: 1.225, fortHp: 1.15, turret: 1.093, level: 1},
-    '1-4': {income: 1.385, startInk: 1.256, army: 1.298, fortHp: 1.196, turret: 1.121, level: 1},
-    '1-5': {income: 1.481, startInk: 1.316, army: 1.369, fortHp: 1.241, turret: 1.147, level: 1},
-    '1-6': {income: 1.433, startInk: 1.287, army: 1.334, fortHp: 1.219, turret: 1.134, level: 1, bossHp: 1.241, bossDmg: 1.155},
-    '2-1': {income: 1.767, startInk: 1.49, army: 1.577, fortHp: 1.368, turret: 1.221, level: 1},
-    '2-2': {income: 1.767, startInk: 1.49, army: 1.577, fortHp: 1.368, turret: 1.221, level: 1},
-    '2-3': {income: 1.767, startInk: 1.49, army: 1.577, fortHp: 1.368, turret: 1.221, level: 1},
-    '2-4': {income: 1.672, startInk: 1.433, army: 1.509, fortHp: 1.327, turret: 1.197, level: 1},
-    '2-5': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '2-6': {income: 0.703, startInk: 0.782, army: 0.755, fortHp: 0.824, turret: 0.884, level: -1, bossHp: 0.81, bossDmg: 0.869},
-    '3-1': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '3-2': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '3-3': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '3-4': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '3-5': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '3-6': {income: 0.904, startInk: 0.932, army: 0.923, fortHp: 0.946, turret: 0.965, level: 0, bossHp: 0.941, bossDmg: 0.961},
-    '4-1': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '4-2': {income: 2.429, startInk: 1.861, army: 2.034, fortHp: 1.629, turret: 1.364, level: 2},
-    '4-3': {income: 1.222, startInk: 1.151, army: 1.174, fortHp: 1.117, turret: 1.073, level: 0},
-    '4-4': {income: 1.222, startInk: 1.151, army: 1.174, fortHp: 1.117, turret: 1.073, level: 0},
-    '4-5': {income: 1.773, startInk: 1.493, army: 1.581, fortHp: 1.37, turret: 1.222, level: 1},
-    '4-6': {income: 1.059, startInk: 1.041, army: 1.047, fortHp: 1.032, turret: 1.02, level: 0, bossHp: 1.035, bossDmg: 1.023},
-    '5-1': {income: 1.257, startInk: 1.174, army: 1.201, fortHp: 1.134, turret: 1.083, level: 0},
-    '5-2': {income: 0.636, startInk: 0.728, army: 0.696, fortHp: 0.78, turret: 0.853, level: -1},
-    '5-3': {income: 1.537, startInk: 1.351, army: 1.41, fortHp: 1.266, turret: 1.162, level: 1},
-    '5-4': {income: 0.669, startInk: 0.755, army: 0.725, fortHp: 0.801, turret: 0.869, level: -1},
-    '5-5': {income: 1.257, startInk: 1.174, army: 1.201, fortHp: 1.134, turret: 1.083, level: 0},
-    '5-6': {income: 0.233, startInk: 0.36, army: 0.311, fortHp: 0.448, turret: 0.6, level: -3, bossHp: 0.417, bossDmg: 0.558},
+    '1-1': {income: 1, startInk: 1, army: 1, fortHp: 1, turret: 1, level: 0, waves: 1},
+    '1-2': {income: 1.147, startInk: 1.101, army: 1.116, fortHp: 1.079, turret: 1.049, level: 0, waves: 0.934},
+    '1-3': {income: 1.295, startInk: 1.198, army: 1.23, fortHp: 1.153, turret: 1.095, level: 1, waves: 0.879},
+    '1-4': {income: 1.393, startInk: 1.261, army: 1.303, fortHp: 1.2, turret: 1.123, level: 1, waves: 0.847},
+    '1-5': {income: 1.491, startInk: 1.322, army: 1.376, fortHp: 1.245, turret: 1.15, level: 1, waves: 0.819},
+    '1-6': {income: 1.442, startInk: 1.292, army: 1.34, fortHp: 1.223, turret: 1.137, level: 1, bossHp: 1.245, bossDmg: 1.158, waves: 0.833},
+    '2-1': {income: 1.784, startInk: 1.499, army: 1.589, fortHp: 1.375, turret: 1.224, level: 1, waves: 0.749},
+    '2-2': {income: 1.784, startInk: 1.499, army: 1.589, fortHp: 1.375, turret: 1.224, level: 1, waves: 0.749},
+    '2-3': {income: 1.784, startInk: 1.499, army: 1.589, fortHp: 1.375, turret: 1.224, level: 1, waves: 0.749},
+    '2-4': {income: 1.686, startInk: 1.441, army: 1.519, fortHp: 1.333, turret: 1.201, level: 1, waves: 0.77},
+    '2-5': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '2-6': {income: 0.721, startInk: 0.795, army: 0.77, fortHp: 0.835, turret: 0.892, level: -1, bossHp: 0.822, bossDmg: 0.877, waves: 1.178},
+    '3-1': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '3-2': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '3-3': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '3-4': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '3-5': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '3-6': {income: 0.904, startInk: 0.932, army: 0.923, fortHp: 0.946, turret: 0.965, level: 0, bossHp: 0.941, bossDmg: 0.961, waves: 1.052},
+    '4-1': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '4-2': {income: 2.464, startInk: 1.88, army: 2.058, fortHp: 1.642, turret: 1.371, level: 2, waves: 0.637},
+    '4-3': {income: 0.797, startInk: 0.853, army: 0.834, fortHp: 0.883, turret: 0.924, level: 0, waves: 1.12},
+    '4-4': {income: 1.276, startInk: 1.186, army: 1.215, fortHp: 1.143, turret: 1.089, level: 1, waves: 0.885},
+    '4-5': {income: 1.988, startInk: 1.618, army: 1.733, fortHp: 1.459, turret: 1.272, level: 1, waves: 0.709},
+    '4-6': {income: 0.59, startInk: 0.691, army: 0.655, fortHp: 0.748, turret: 0.831, level: -1, bossHp: 0.728, bossDmg: 0.81, waves: 1.302},
+    '5-1': {income: 1.276, startInk: 1.186, army: 1.215, fortHp: 1.143, turret: 1.089, level: 1, waves: 0.885},
+    '5-2': {income: 0.74, startInk: 0.81, army: 0.786, fortHp: 0.847, turret: 0.9, level: -1, waves: 1.163},
+    '5-3': {income: 1.988, startInk: 1.618, army: 1.733, fortHp: 1.459, turret: 1.272, level: 1, waves: 0.709},
+    '5-4': {income: 0.482, startInk: 0.6, army: 0.558, fortHp: 0.67, turret: 0.775, level: -2, waves: 1.44},
+    '5-5': {income: 0.636, startInk: 0.728, army: 0.696, fortHp: 0.78, turret: 0.853, level: -1, waves: 1.254},
+    '5-6': {income: 0.05, startInk: 0.123, army: 0.091, fortHp: 0.193, turret: 0.35, level: 0, bossHp: 0.85, bossDmg: 0.85, waves: 4.472},
     // AUTOTUNE:END
   },
 };
 
-export const HARD_MODE = { enemyHp: 1.6, enemyDmg: 1.35, enemyIncome: 1.45, fortHp: 1.5, levelBonus: 2, gold: 1.8 };
+// Red Ink: these are the floor; src/game/teamcfg.js raises the enemy level and multipliers with the player's unit levels.
+export const HARD_MODE = { enemyHp: 1.8, enemyDmg: 1.45, enemyIncome: 1.6, fortHp: 1.7, levelBonus: 2, gold: 1.8 };
 
 const L = (o) => o;
 
@@ -86,16 +88,16 @@ export const LEVELS = [
       roster: ['brawler', 'slinger'], weights: { brawler: 2, slinger: 1 }, aggression: 1.4, firstAttack: 60, maxArmy: 9 },
     rewards: { gold: 140, xp: 70, unlock: { spell: 'pencil_rain' } }, win: 'fort' }),
   L({ id: '1-3', chapter: 1, n: 3, name: 'Hold the Line', page: 'ruled', faction: 'red', width: 2600, tutorial: 'stance',
-    intro: 'Ambush! They are already marching. Stay on DEFEND until your army is ready, then CHARGE.',
+    intro: 'Ambush! Rebels are already marching on your fort. Press DEFEND to hold the line, then CHARGE when they break.',
     enemy: { fortHp: 1400, turret: { dmg: 8, range: 420, cd: 1.9 }, startInk: 120, income: 1.2, scribes: 2, level: 1,
       roster: ['brawler', 'slinger'], weights: { brawler: 3, slinger: 2 }, aggression: 1.3, firstAttack: 20, maxArmy: 10,
       startUnits: { brawler: 4, slinger: 2 } },
     modifiers: ['rush'], rewards: { gold: 160, xp: 80, unlock: { unit: 'shieldbearer' } }, win: 'fort' }),
   L({ id: '1-4', chapter: 1, n: 4, name: 'Red Tide', page: 'ruled', faction: 'red', width: 2800, tutorial: 'hero',
-    intro: 'A big Rebel push is coming. Your Captain can fight on the front line. Move him with A and D.',
-    enemy: { fortHp: 1700, turret: { dmg: 10, range: 440, cd: 1.8 }, startInk: 150, income: 1.5, scribes: 3, level: 2,
-      roster: ['brawler', 'slinger', 'shieldbearer'], weights: { brawler: 3, slinger: 2, shieldbearer: 1 }, aggression: 1.25, firstAttack: 55, maxArmy: 12 },
-    script: [{ t: 100, spawn: { brawler: 4, shieldbearer: 1 }, say: 'Red tide incoming!' }],
+    intro: 'A big Rebel push is coming. Draw more Scribes for ink, then fight beside your Captain. Move him with A and D.',
+    enemy: { fortHp: 1500, turret: { dmg: 10, range: 440, cd: 1.8 }, startInk: 150, income: 1.5, scribes: 3, level: 2,
+      roster: ['brawler', 'slinger', 'shieldbearer'], weights: { brawler: 3, slinger: 2, shieldbearer: 1 }, aggression: 1.25, firstAttack: 45, maxArmy: 11 },
+    script: [{ t: 80, spawn: { brawler: 4, shieldbearer: 1 }, say: 'Red tide incoming!' }],
     rewards: { gold: 180, xp: 90, unlock: { spell: 'coffee_spill' } }, win: 'fort' }),
   L({ id: '1-5', chapter: 1, n: 5, name: 'Ink Wells', page: 'ruled', faction: 'red', width: 3000,
     intro: 'A huge ink well sits in the middle of the page. Whoever holds it wins the ink race.',
@@ -145,7 +147,7 @@ export const LEVELS = [
 
   // ---------------------------------------------------------------- Chapter 3: The Sketchbook (Neon)
   L({ id: '3-1', chapter: 3, n: 1, name: 'Glow Up', page: 'sketch', faction: 'neon', width: 3200,
-    intro: 'Glowrunners are fast. Get a front line down early or they will be at your Scribes.',
+    intro: 'Glowrunners dash at your Scribes, and Neon Archers shoot from far away. Shieldbearers block arrows and Riders run archers down.',
     enemy: { fortHp: 3800, turret: { dmg: 18, range: 490, cd: 1.5 }, startInk: 280, income: 2.8, scribes: 5, level: 5,
       roster: ['glowrunner', 'neon_archer'], weights: { glowrunner: 4, neon_archer: 2 }, aggression: 1.05, firstAttack: 35, maxArmy: 22 },
     rewards: { gold: 360, xp: 160, unlock: { unit: 'doodler' } }, win: 'fort' }),
@@ -190,7 +192,7 @@ export const LEVELS = [
   L({ id: '4-3', chapter: 4, n: 3, name: 'Detention', page: 'chalk', faction: 'chalk', width: 3200,
     intro: 'Survive four minutes of detention. Their fort cannot be hurt, so hold your ground.',
     enemy: { fortHp: 5500, turret: { dmg: 23, range: 520, cd: 1.35 }, startInk: 500, income: 4.6, scribes: 6, level: 7,
-      roster: ['dustborn', 'chalk_thrower', 'board_brute', 'dust_mage'], weights: { dustborn: 4, chalk_thrower: 3, board_brute: 1, dust_mage: 1 }, aggression: 0.8, firstAttack: 20, maxArmy: 30 },
+      roster: ['dustborn', 'chalk_thrower', 'board_brute', 'dust_mage'], weights: { dustborn: 4, chalk_thrower: 3, board_brute: 1, dust_mage: 1 }, aggression: 0.8, firstAttack: 20, maxArmy: 30, escalateAt: 100 },
     script: [{ t: 60, spawn: { board_brute: 1, dustborn: 3 }, say: 'More students arrive!' }, { t: 150, spawn: { board_brute: 2, dust_mage: 1 }, say: 'The final bell is near!' }],
     win: 'survive', surviveTime: 240, rewards: { gold: 470, xp: 210, unlock: { unit: 'ninja' } } }),
   L({ id: '4-4', chapter: 4, n: 4, name: 'Board Meeting', page: 'chalk', faction: 'chalk', width: 3500,
@@ -251,7 +253,7 @@ const BASE_ENEMY = LEVELS.map((l) => JSON.parse(JSON.stringify(l.enemy)));
 export function retune() {
   LEVELS.forEach((L, i) => {
     const e = (L.enemy = JSON.parse(JSON.stringify(BASE_ENEMY[i])));
-    const t = { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1 };
+    const t = { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1, waves: 1 };
     for (const src of [TUNE.all, TUNE.chapter[L.chapter], TUNE.level[L.id], TUNE.auto[L.id]]) {
       if (!src) continue;
       for (const k in src) t[k] = ['level', 'aggression', 'firstAttack', 'bossAt'].includes(k) ? t[k] + src[k] : t[k] * src[k];
@@ -265,6 +267,11 @@ export function retune() {
     e.aggression = +((e.aggression ?? 1.2) + t.aggression).toFixed(2);
     e.firstAttack = Math.max(5, Math.round((e.firstAttack ?? 45) + t.firstAttack));
     if (e.bossAt != null) e.bossAt = Math.max(5, e.bossAt + t.bossAt);
+    // Pressure rhythm (src/sim/ai.js): seconds between attack waves, 80 s on the first page down to 35 s at the end.
+    if (e.waveEvery == null) e.waveEvery = Math.round(80 - 45 * ((L.chapter - 1) * 6 + L.n - 1) / 29);
+    e.waveEvery = Math.max(18, Math.round(e.waveEvery * t.waves)); // tuner dial: harder levels attack more often
+    if (e.raid == null && L.chapter === 1 && L.n <= 3) e.raid = 0; // the first levels teach, they do not flank
+    if (L.win === 'survive' && !e.freeWaves) e.freeWaves = { first: 25, every: 36, budget: 260, say: 'More students arrive!' };
     if (L.boss && (t.bossHp !== 1 || t.bossDmg !== 1)) {
       e.mods = { ...(e.mods || {}), byUnit: { ...((e.mods && e.mods.byUnit) || {}), [L.boss]: { hp: t.bossHp, dmg: t.bossDmg } } };
     }

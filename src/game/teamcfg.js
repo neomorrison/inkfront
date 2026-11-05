@@ -41,12 +41,27 @@ export function playerTeamConfig(profile, opts = {}) {
   return cfg;
 }
 
-// level.enemy block -> AI team config. hard = Red Ink mode.
+// How strong the player's army is: the mean upgrade level of the units in the loadout (Scribe excluded).
+export function playerPower(profile) {
+  if (!profile || !profile.loadout) return { avgLevel: 1, power: 0 };
+  const ids = (profile.loadout.units || []).filter((id) => !profile.unlockedUnits || profile.unlockedUnits.includes(id));
+  const lv = ids.map((id) => (profile.units && profile.units[id]) || 1);
+  const avgLevel = lv.length ? lv.reduce((a, b) => a + b, 0) / lv.length : 1;
+  // 0 at an average level of 3, 1 at level 10: Red Ink grows with the account that plays it.
+  return { avgLevel, power: Math.max(0, Math.min(1, (avgLevel - 3) / 7)) };
+}
+
+// level.enemy block -> AI team config. hard = Red Ink mode (opts.profile scales it with the player).
 export function enemyTeamConfig(level, opts = {}) {
   const e = level.enemy;
   const hard = !!opts.hard;
   const H = hard ? HARD_MODE : null;
-  const lvl = (e.level || 1) + (hard ? H.levelBonus : 0);
+  const pw = hard ? playerPower(opts.profile) : { avgLevel: 1, power: 0 };
+  const lvl = hard
+    ? Math.min(14, Math.max((e.level || 1) + H.levelBonus, Math.round(pw.avgLevel) + 2))
+    : (e.level || 1);
+  const scale = (base, extra) => base * (1 + extra * pw.power);
+  const armyMax = Math.round((e.maxArmy ?? 20) * (hard ? 1 + 0.5 * pw.power : 1));
   const roster = Array.from(new Set(['scribe', ...(e.roster || [])]));
   const unitLevels = {};
   for (const id of roster) unitLevels[id] = lvl;
@@ -54,23 +69,23 @@ export function enemyTeamConfig(level, opts = {}) {
   const cfg = {
     faction: level.faction,
     startInk: e.startInk ?? 150,
-    income: (e.income ?? 1.5) * (H ? H.enemyIncome : 1),
-    popCap: Math.max(10, (e.maxArmy ?? 20) + (e.scribes ?? 3) + 4),
+    income: (e.income ?? 1.5) * (H ? scale(H.enemyIncome, 0.25) : 1),
+    popCap: Math.max(10, armyMax + (e.scribes ?? 3) + 4),
     scribeCap: e.scribes ?? 3,
     wellYield: 1,
     roster,
     unitLevels,
     fort: {
-      hp: Math.round((e.fortHp ?? 1500) * (H ? H.fortHp : 1)),
+      hp: Math.round((e.fortHp ?? 1500) * (H ? scale(H.fortHp, 0.3) : 1)),
       turretDmg: (e.turret && e.turret.dmg) ?? 10,
       turretRange: (e.turret && e.turret.range) ?? 440,
       turretCd: (e.turret && e.turret.cd) ?? 1.8,
       invulnerable: !!e.invulnerableFort || level.win === 'survive',
     },
     spells: e.spells || [],
-    mods: { hp: H ? H.enemyHp : 1, dmg: H ? H.enemyDmg : 1, ...(e.mods || {}) },
+    mods: { hp: H ? scale(H.enemyHp, 0.4) : 1, dmg: H ? scale(H.enemyDmg, 0.25) : 1, ...(e.mods || {}) },
     startUnits: e.startUnits || null,
-    ai: { ...e, boss: level.boss || null, script: level.script || [] },
+    ai: { ...e, maxArmy: armyMax, boss: level.boss || null, script: level.script || [] },
   };
   if (cfg.mods.byUnit == null) cfg.mods.byUnit = {};
   return cfg;

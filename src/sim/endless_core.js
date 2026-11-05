@@ -11,6 +11,7 @@ import { FACTIONS } from '../data/factions.js';
 import { PERKS, RARITY_WEIGHT } from '../data/perks.js';
 import { CHAPTERS } from '../data/pages.js';
 import { PERK_IMPL } from './registry.js';
+import { validTarget } from './common.js';
 import { PERK_STACK } from './perks.js';
 
 export const ENDLESS = {
@@ -18,7 +19,10 @@ export const ENDLESS = {
   breakTime: 8,      // seconds between waves, after the draft
   healFrac: 0.15,    // fort repair after each wave
   maxUnits: 56,      // on-field cap per wave so 150-unit battles stay smooth
-  stragglerAfter: 150, // seconds into a wave before leftovers start fading
+  stragglerAfter: 85,  // seconds into a wave before leftovers start fading (the stall breaker)
+  lastFewAfter: 40,    // same, when only one or two enemies are left
+  huntEvery: 0.8,      // seconds between "go and find them" checks for wave units with nothing to shoot at
+  inkCap: 1600,        // Endless lowers the ink cap so ink cannot pile up unspent
   spawnSpan: 7,      // base seconds a wave takes to file in
 };
 
@@ -26,16 +30,18 @@ const BOSSES = ['boss_redline', 'boss_smudge', 'boss_wyrm', 'boss_professor', 'b
 const MINIS = ['graphite_golem', 'board_brute', 'colossus'];
 
 // Ink-worth of enemies in a wave.
+// Past wave 8 the curve steepens so a strong account feels pressure by waves 12 to 15.
 export function waveBudget(w) {
-  return Math.round(150 + 78 * w + 3.2 * w * w);
+  return Math.round((150 + 78 * w + 3.2 * w * w) * (1 + 0.1 * Math.max(0, w - 8)));
 }
 
 // Upgrade level and stat multipliers for enemy units of wave w.
 export function waveScaling(w) {
+  const late = Math.max(0, w - 8);
   return {
-    level: Math.min(12, 1 + Math.floor((w - 1) / 2.2)),
-    hp: 1 + 0.03 * (w - 1),
-    dmg: 1 + 0.022 * (w - 1),
+    level: Math.min(14, 1 + Math.floor((w - 1) / 2.2) + Math.floor(late / 2.5)),
+    hp: 1 + 0.03 * (w - 1) + 0.03 * late,
+    dmg: 1 + 0.022 * (w - 1) + 0.025 * late,
   };
 }
 
@@ -111,10 +117,31 @@ function pickWeighted(b, arr, wf) {
   return arr[arr.length - 1];
 }
 
+const INK_PERKS = new Set(['ink_flow', 'cheap_ink', 'ink_bank', 'free_fifth', 'iron_scribes']);
+
+// A perk that would do nothing right now (fort already full, ink already at the cap, no ranged units to buff...).
+export function perkIsDead(p, b) {
+  const t = b.teams[0];
+  const f = t.fort;
+  const defs = t.roster.map((id) => UNITS[id]).filter((d) => d && d.id !== 'scribe');
+  if (INK_PERKS.has(p.id) && t.ink >= t.inkCap * 0.7) return true;
+  if (p.id === 'patch_up') return !f.alive || f.hp >= f.maxHp * 0.8;
+  if (p.id === 'long_arms' || p.id === 'fire_everything') return !defs.some((d) => d.proj);
+  if (p.id === 'sharp_swords' || p.id === 'vampire_ink') return !defs.some((d) => d.tags && d.tags.includes('melee'));
+  if (p.id === 'martyrs') return !t.roster.includes('brawler');
+  if (p.id === 'hot_coffee') return !t.spells.length;
+  if (p.id === 'hero_vigor') return !t.cfg.hero;
+  if (p.id === 'tower_volley') return !f.turret || f.turret.on === false;
+  if (p.id === 'iron_scribes') return !t.scribeCap;
+  return false;
+}
+
 // Offer 3 distinct perks. owned = array of ids (duplicates count as stacks).
 export function offerPerks(b, owned, wave) {
   const count = (id) => owned.filter((x) => x === id).length;
-  const ok = PERKS.filter((p) => PERK_IMPL[p.id] && count(p.id) < (PERK_STACK[p.id] || 1));
+  const avail = PERKS.filter((p) => PERK_IMPL[p.id] && count(p.id) < (PERK_STACK[p.id] || 1));
+  const live = avail.filter((p) => !perkIsDead(p, b));
+  const ok = live.length >= 3 ? live : avail; // never offer fewer than three cards
   const weight = (p) => {
     let w = RARITY_WEIGHT[p.rarity] || 10;
     if (wave >= 10 && p.rarity !== 'common') w *= 1.25;
@@ -170,6 +197,9 @@ export function initEndless(b) {
   foe.income = 0;
   foe.ink = 0;
   b.setStance(1, 'charge');
+  // Ink cannot pile up forever: Endless caps it lower so spending stays a decision.
+  const mine = b.teams[0];
+  mine.inkCap = Math.min(mine.inkCap, b.cfg.inkCap ?? ENDLESS.inkCap);
 }
 
 export function addPerk(b, id) {
@@ -218,6 +248,27 @@ function startWave(b, E) {
   else if (mini) b.emit('banner', { text: `Wave ${w}: something big is coming`, team: 1 });
 }
 
+// Wave units with nothing in reach would otherwise park at the sealed fort's slot (ranged units stopped
+// out of reach of everything). Give them the nearest of your units, or your fort, to walk at.
+const HUNTERS = new Set(['melee', 'ranged', 'cavalry']);
+function hunt(b) {
+  const prey = [];
+  for (const u of b.byTeam[0]) if (u.alive && u.targetable && !u.stealth && !u.tags.has('structure')) prey.push(u);
+  const fort = b.teams[0].fort;
+  for (const u of b.byTeam[1]) {
+    if (!u.alive || u.isBoss || !HUNTERS.has(u.def.behavior) || u.attacking || u.state === 'spawn') continue;
+    if (validTarget(u, u.target) && !(u.target.isFort && prey.length)) continue;
+    let best = null, bd = Infinity;
+    for (const e of prey) {
+      if (e.flying && !u.canHitAir) continue;
+      const d = Math.abs(e.x - u.x);
+      if (d < bd) { bd = d; best = e; }
+    }
+    if (!best && fort.alive) best = fort;
+    if (best) { u.target = best; u.retargetT = ENDLESS.huntEvery + 0.3; }
+  }
+}
+
 function aliveFoes(b) {
   let n = 0;
   for (const u of b.units) if (u.alive && u.team === 1 && !u.tags.has('structure') && !(u.lifetime > 0)) n++;
@@ -259,10 +310,15 @@ export function updateEndless(b, dt) {
     const u = b.spawnUnit(1, p.id, { x, level: p.level, hpMult: p.hpMult, dmgMult: p.dmgMult, spawnTime: p.boss ? 1.2 : 0.45 });
     if (p.boss) { b.boss = u; b.emit('bossArrive', { unit: u, id: p.id }); }
   }
-  // Failsafe: anything still alive three minutes in gets erased by the margin, so a wave can never stall.
-  if (E.waveT > ENDLESS.stragglerAfter && !E.pending.length) {
+  E.huntT = (E.huntT ?? 0) - dt;
+  if (E.huntT <= 0) { E.huntT = ENDLESS.huntEvery; hunt(b); }
+  // Failsafe: anything still alive well into the wave gets erased by the margin, so a wave can never stall.
+  const left = E.pending.length + aliveFoes(b);
+  // One or two stragglers (say, an archer knocked behind its own fort) are erased sooner than a whole stalled wave.
+  const stalled = E.waveT > ENDLESS.stragglerAfter || (left <= 2 && E.waveT > ENDLESS.lastFewAfter);
+  if (stalled && !E.pending.length) {
     if (!E.erasing) { E.erasing = true; b.emit('banner', { text: 'The margin erases the stragglers', team: 1 }); }
-    for (const u of b.units) if (u.alive && u.team === 1 && !u.tags.has('structure')) b.damage(u, u.maxHp * 0.05 * dt, { kind: 'true', team: 0, silent: true });
+    for (const u of b.units) if (u.alive && u.team === 1 && !u.tags.has('structure')) b.damage(u, u.maxHp * 0.06 * dt, { kind: 'true', team: 0, silent: true });
   }
   E.enemiesLeft = E.pending.length + aliveFoes(b);
   if (!E.pending.length && E.enemiesLeft === 0) clearWave(b, E);
