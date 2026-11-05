@@ -16,6 +16,7 @@ export class Camera {
     this.worldW = 3000;
     this.targetX = null;
     this.shake = 0;
+    this.shakeT = 0;
     this.ox = 0;
     this.oy = 0;
   }
@@ -54,6 +55,7 @@ export class Camera {
     this.x = this.clampX(this.x + dxWorld);
   }
 
+  // Shake is "trauma": it adds up, decays fast, and is capped so the battle stays readable.
   addShake(a) {
     this.shake = Math.min(16, this.shake + a);
   }
@@ -61,16 +63,23 @@ export class Camera {
   update(dt, shakeOn = true) {
     if (this.targetX != null) {
       const tx = this.clampX(this.targetX);
-      this.x += (tx - this.x) * Math.min(1, dt * 5);
-      if (Math.abs(tx - this.x) < 0.5) this.x = tx;
+      // Critically damped feel: exponential approach, frame-rate independent.
+      this.x += (tx - this.x) * (1 - Math.exp(-dt * 6));
+      if (Math.abs(tx - this.x) < 0.25) this.x = tx;
     }
     this.x = this.clampX(this.x);
     if (this.shake > 0.05 && shakeOn) {
-      this.ox = (Math.random() * 2 - 1) * this.shake;
-      this.oy = (Math.random() * 2 - 1) * this.shake * 0.6;
-      this.shake *= Math.pow(0.0025, dt);
+      this.shakeT += dt;
+      // Squared falloff keeps small shakes subtle; smooth sines (not white noise) avoid a blurry jitter.
+      const k = Math.min(1, this.shake / 16);
+      const amp = Math.min(9, k * k * 14 + this.shake * 0.25);
+      const T = this.shakeT;
+      this.ox = amp * (Math.sin(T * 61) * 0.6 + Math.sin(T * 37 + 1.3) * 0.4);
+      this.oy = amp * 0.6 * (Math.sin(T * 53 + 2.1) * 0.6 + Math.sin(T * 29) * 0.4);
+      this.shake *= Math.pow(0.012, dt);
     } else {
       this.shake = 0;
+      this.shakeT = 0;
       this.ox = 0;
       this.oy = 0;
     }
