@@ -98,6 +98,16 @@ section('AI');
   const sb = runBattle(sp, 150);
   ok(sb.teams[1].stats.spellsCast > 0, 'enemy AI casts its spells');
 
+  // Protects its Scribes: raiders at home while the army is far away turn the push around.
+  const rb = new Battle(campaignConfig({ levelId: '3-2', seed: 3 }, expectedProfile('3-2')));
+  const rai = rb.teams[1].ai;
+  for (let i = 0; i < 60 * 20; i++) { rb.update(1 / 60); rb.events.length = 0; }
+  rai.setPhase('push');
+  for (const u of rb.units) if (u.team === 1 && u.type !== 'scribe') u.x = 800;
+  for (let i = 0; i < 4; i++) rb.spawnUnit(0, 'brawler', { x: rb.teams[1].fort.x - 300 - i * 20, instant: true });
+  for (let i = 0; i < 60 * 8; i++) { rb.update(1 / 60); rb.events.length = 0; }
+  ok(rai.phase === 'muster' && rb.teams[1].stance === 'defend', 'AI recalls its army when raiders reach its Scribes');
+
   // Never trickles: once pushing, the first charge happens only with a real army.
   const tb = new Battle(campaignConfig({ levelId: '3-2', seed: 11 }, expectedProfile('3-2')));
   let firstPush = null;

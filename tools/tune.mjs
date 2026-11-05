@@ -22,7 +22,7 @@ const TARGETS = {
 const targetFor = (L) => (L.boss ? TARGETS.boss[L.chapter] : L.id === '1-1' ? 100 : TARGETS.regular[L.chapter]);
 const BOUNDS = { lo: 0.2, hi: 2.5 }; // past ~2.5 a level is no longer the level it was designed as
 // A new player must never meet a punishing opening, however strong the bot is.
-const CAPS = { '1-1': 1.0, '1-2': 1.15, '1-3': 1.3, '1-4': 1.5, '1-5': 1.7, '1-6': 2.0 };
+const CAPS = { '1-1': 1.0, '1-2': 1.15, '1-3': 1.3, '1-4': 1.4, '1-5': 1.5, '1-6': 1.45, '2-1': 1.8, '2-2': 1.8, '2-3': 1.8, '2-4': 1.7 };
 
 // One dial k (1 = as designed). Higher k = stronger enemy: more income, ink and army, a tougher fort and tower,
 // and (every ~1.6x) one more upgrade level on every enemy unit. Boss levels also scale the boss.

@@ -1,7 +1,19 @@
 // OWNER: AI/levels/modes builder (package C): AREA_DRAW for modifier zones (coffee stains) and endless/daily visuals.
 import { AREA_DRAW } from './renderer.js';
-import { inkCircle, splatPath, boilFrame, inkLine } from './ink.js';
+import { boilFrame, inkLine } from './ink.js';
 import { hash2 } from '../core/util.js';
+
+// Flat, lumpy puddle outline (an ellipse with wobbling lobes), squashed to sit on the ground.
+function blob(ctx, x, y, rx, ry, seed, lobes = 9) {
+  const n = lobes * 3;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const k = 0.84 + hash2(seed, i % n) * 0.28 + Math.sin(a * 3 + seed) * 0.05;
+    const px = x + Math.cos(a) * rx * k, py = y + Math.sin(a) * ry * k;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
 
 // Coffee stain: a brown puddle with a darker ring, a few drips and gentle shimmer.
 AREA_DRAW.coffee_stain = {
@@ -13,11 +25,18 @@ AREA_DRAW.coffee_stain = {
     ctx.save();
     ctx.fillStyle = 'rgba(112,72,38,.42)';
     ctx.beginPath();
-    splatPath(ctx, x, y, rx, a.seed);
+    blob(ctx, x, y, rx, ry, a.seed);
     ctx.fill();
+    // Splashes around the edge.
+    for (let i = 0; i < 4; i++) {
+      const ang = hash2(a.seed, i + 60) * 6.28;
+      ctx.beginPath();
+      ctx.ellipse(x + Math.cos(ang) * rx * 1.08, y + Math.sin(ang) * ry * 1.25, (4 + hash2(a.seed, i + 70) * 6) * z, (2 + hash2(a.seed, i + 80) * 2.5) * z, 0, 0, 6.28);
+      ctx.fill();
+    }
     ctx.fillStyle = 'rgba(150,98,52,.5)';
     ctx.beginPath();
-    ctx.ellipse(x, y, rx * 0.8, ry * 0.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y, rx * 0.78, ry * 0.78, 0, 0, Math.PI * 2);
     ctx.fill();
     // Dark ring where the coffee dried.
     ctx.strokeStyle = 'rgba(78,46,22,.75)';
@@ -53,7 +72,6 @@ AREA_DRAW.coffee_stain = {
       ctx.stroke();
     }
     ctx.restore();
-    void inkCircle;
   },
 };
 
