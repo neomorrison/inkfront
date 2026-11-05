@@ -14,6 +14,12 @@ SPELL_IMPL.eraser = {
     spellFx(b, 'eraser', 'cast', x, team, { width: def.width });
     b.areas.push({
       kind: 'eraser', team, x, width: def.width, t: 0, drop: DROP, dur, lift: LIFT, total: DROP + dur + LIFT, rubT: 0, started: false, alive: true,
+      amp: Math.max(20, half - 62), // the block is ~120 wide, so its center swings inside the strip
+      // Where the eraser block is right now (the renderer and the FX events share this).
+      rubX() {
+        const k = Math.min(Math.max(this.t - this.drop, 0), this.dur) / this.dur;
+        return this.x + this.amp * Math.cos(k * Math.PI * 2 * Math.max(1.5, this.dur * 1.4));
+      },
       update(b, dt) {
         this.t += dt;
         if (this.t >= this.drop && this.t < this.drop + this.dur) {
@@ -30,7 +36,7 @@ SPELL_IMPL.eraser = {
           this.rubT -= dt;
           if (this.rubT <= 0) {
             this.rubT = 0.3;
-            spellFx(b, 'eraser', 'tick', this.x, this.team, { width: this.width });
+            spellFx(b, 'eraser', 'tick', this.x, this.team, { width: this.width, rubX: this.rubX() });
           }
         }
         if (this.t >= this.total) {
