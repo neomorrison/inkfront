@@ -4,6 +4,7 @@ import { Battle } from '../sim/index.js';
 import { Input } from '../core/input.js';
 import { bus } from '../core/events.js';
 import { clamp } from '../core/util.js';
+import { SPELLS } from '../data/spells.js';
 import { UI } from '../ui/ui.js';
 import { Audio } from '../audio/audio.js';
 import { handleBattleAudio } from '../audio/events.js';
@@ -25,6 +26,9 @@ export class Session {
     this.isDemo = opts.kind === 'demo';
     this.profile = Save.data;
     this.cfg = buildBattleConfig(opts, this.profile);
+    // The spells tutorial needs a spell to teach with, even on a fresh save.
+    const myCfg = this.cfg.teams && this.cfg.teams[0];
+    if (this.cfg.tutorial === 'spells' && myCfg && !(myCfg.spells || []).length) myCfg.spells = [{ id: 'pencil_rain', level: 1 }];
     this.battle = new Battle(this.cfg);
     this.r = app.renderer;
     this.r.setBattle(this.battle, { camX: -60 });
@@ -41,6 +45,15 @@ export class Session {
     this.listeners = [];
     this.roster = this.battle.teams[0].roster.slice(); // card order; index 0 is the Scribe
     this.touchHero = 0;
+    this.camMode = 'follow'; // 'follow' eases toward the action when idle; 'free' never moves by itself
+    this.camIdle = 0; // seconds since the player last moved the camera by hand
+    this.focusX = null;
+    this.actionX = null;
+    this.actionT = 0;
+    this.camMoving = false;
+    this.steer = 0;
+    this.tickers = []; // fn(dt) called every update (tutorial)
+    this.dragging = false;
   }
 
   start() {
@@ -85,6 +98,12 @@ export class Session {
     const s = this.battle.teams[0].spells[slot];
     if (!s || s.cd > 0 || this.ended) { Audio.play('denied'); return; }
     if (this.targeting && this.targeting.kind === 'spell' && this.targeting.slot === slot) { this.cancelTargeting(); return; }
+    if (SPELLS[s.id] && SPELLS[s.id].target === 'global') {
+      // Nothing to aim: cast it at once.
+      this.cancelTargeting();
+      if (!this.battle.castSpell(0, slot, this.cam.x + this.cam.viewW / 2)) Audio.play('denied');
+      return;
+    }
     this.targeting = { kind: 'spell', slot, id: s.id };
     bus.emit('targeting', this.targeting);
   }
@@ -119,8 +138,24 @@ export class Session {
     this.paused = force ?? !this.paused;
     this.app.loop.paused = this.paused;
     if (this.paused) UI.modal('pause', { session: this });
-    else UI.closeModal('pause');
+    else { UI.closeModal('pause'); Input.clearPresses(); }
     bus.emit('pause', this.paused);
+  }
+
+  // Freeze the loop for a modal that is not the pause menu (how to play, endless draft).
+  holdLoop(on) {
+    if (this.isDemo) return;
+    this.paused = on;
+    this.app.loop.paused = on;
+    if (!on) Input.clearPresses();
+    bus.emit('pause', on);
+  }
+
+  openDraft(offer) {
+    if (this.isDemo || this.ended) return;
+    this.targeting && this.cancelTargeting();
+    this.holdLoop(true);
+    UI.modal('draft', { session: this, offer });
   }
 
   setSpeed(v) {
@@ -152,7 +187,8 @@ export class Session {
     if (Input.isDown('KeyD', 'ArrowRight')) mv += 1;
     if (this.touchHero) mv = this.touchHero;
     ctl.heroMove = this.ended ? 0 : mv;
-    if (mv) this.heroCamT = 2.5;
+    this.steer = this.ended ? 0 : mv;
+    if (mv && b.teams[0].hero) { this.heroCamT = 2.5; this.camIdle = 0; this.focusX = null; }
     if (Input.take('KeyQ')) this.heroAbility('rally');
     if (Input.take('KeyE')) this.heroAbility('slam');
     if (Input.take('KeyR')) this.heroAbility('inkstorm');
@@ -171,7 +207,8 @@ export class Session {
         if (!b.castSpell(0, i, this.cam.worldX(this.pointer.x))) Audio.play('denied');
       } else this.beginSpell(i);
     }
-    if (Input.take('Space')) this.heroCamT = this.heroCamT > 0 ? 0 : 3;
+    if (Input.take('Space')) this.followHero();
+    if (Input.take('KeyV')) this.toggleCamMode();
     if (Input.take('Escape', 'KeyP')) {
       if (this.targeting) this.cancelTargeting();
       else this.togglePause();
@@ -181,13 +218,15 @@ export class Session {
 
   update(dt) {
     const b = this.battle;
-    if (!this.isDemo && !this.paused) this.readKeys();
+    if (this.paused && !this.isDemo) return;
+    if (!this.isDemo) this.readKeys();
     if (this.hitStop > 0) this.hitStop -= dt;
     else b.update(dt);
     this.r.update(dt);
     const evs = b.drainEvents();
     for (const e of evs) this.onEvent(e);
     this.updateCamera(dt);
+    for (const fn of this.tickers) fn(dt);
     if (b.result && !this.ended) this.onEnd();
     if (this.ended) {
       this.endT += dt;
@@ -211,9 +250,98 @@ export class Session {
       this.cam.lookAt(fx, 0.5);
       return;
     }
+    this.camIdle += dt;
     this.heroCamT -= dt;
+    if (this.ended || this.dragging) return;
     const h = b.teams[0].hero;
-    if (h && this.heroCamT > 0 && !this.dragging) this.cam.lookAt(h.x, 0.42);
+    if (this.steer && !h) {
+      // Captain is down: A/D (or the touch arrows) scroll the camera.
+      this.cam.pan(this.steer * 820 * dt);
+      this.camIdle = 0;
+      this.focusX = null;
+      return;
+    }
+    if (h && this.heroCamT > 0) { this.cam.lookAt(h.x, 0.42); return; }
+    if (this.camMode === 'follow' && this.camIdle > 4) this.followAction(dt);
+  }
+
+  // The player moved the camera by hand (drag, wheel, minimap): leave it alone for a while.
+  camTouch() {
+    this.camIdle = 0;
+    this.heroCamT = 0;
+    this.focusX = null;
+    this.camMoving = false;
+    this.cam.targetX = null;
+  }
+
+  followHero() {
+    this.camIdle = 0;
+    this.heroCamT = 3;
+    this.focusX = null;
+  }
+
+  setCamMode(m) {
+    this.camMode = m;
+    this.camIdle = 99;
+    this.focusX = null;
+    if (m === 'follow') this.camIdle = 4.1;
+    bus.emit('camMode', m);
+  }
+
+  toggleCamMode() { this.setCamMode(this.camMode === 'follow' ? 'free' : 'follow'); }
+
+  // Where the action is: the nearest fight, else the front of your army.
+  actionFocus() {
+    const b = this.battle;
+    const mine = [];
+    const foes = [];
+    for (const u of b.units) {
+      if (!u.alive) continue;
+      if (u.team === 0) { if (u.type !== 'scribe' && !(u.tags && u.tags.has('structure'))) mine.push(u); }
+      else if (!u.stealth && !(u.tags && u.tags.has('structure'))) foes.push(u);
+    }
+    let best = null;
+    let bestGap = 1e9;
+    for (const a of mine) {
+      for (const e of foes) {
+        const g = Math.abs(a.x - e.x);
+        if (g < bestGap) { bestGap = g; best = [a, e]; }
+      }
+    }
+    if (best && bestGap < 380) {
+      const mid = (best[0].x + best[1].x) / 2;
+      let sum = 0, n = 0;
+      for (const u of mine) if (Math.abs(u.x - mid) < 320) { sum += u.x; n++; }
+      for (const u of foes) if (Math.abs(u.x - mid) < 320) { sum += u.x; n++; }
+      return n ? sum / n : mid;
+    }
+    const fort = b.teams[0].fort.x;
+    if (mine.length) {
+      let front = fort;
+      for (const u of mine) if (u.x > front) front = u.x;
+      return front + this.cam.viewW * 0.1;
+    }
+    if (foes.length) {
+      let near = 1e9;
+      for (const u of foes) if (u.x < near) near = u.x;
+      return Math.min(fort + 300, near - 160);
+    }
+    return fort + 300;
+  }
+
+  followAction(dt) {
+    const cam = this.cam;
+    this.actionT -= dt;
+    if (this.actionX == null || this.actionT <= 0) { this.actionX = this.actionFocus(); this.actionT = 0.25; }
+    if (this.focusX == null) this.focusX = cam.x + cam.viewW / 2;
+    this.focusX += (this.actionX - this.focusX) * Math.min(1, dt * 2.2);
+    const want = this.focusX - cam.viewW / 2;
+    const off = Math.abs(want - cam.x);
+    if (off > cam.viewW * 0.1) this.camMoving = true;
+    if (this.camMoving) {
+      cam.targetX = want;
+      if (off < 10) this.camMoving = false;
+    }
   }
 
   onEnd() {
