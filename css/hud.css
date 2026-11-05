@@ -1,0 +1,87 @@
+/* Battle HUD. OWNER: battle HUD builder (package I). */
+.hud { font-family: var(--font-marker); }
+.hud-top {
+  position: absolute; top: 0; left: 0; right: 0; height: var(--hud-top);
+  display: flex; align-items: center; gap: 12px; padding: 8px calc(12px + var(--safe-r)) 0 calc(12px + var(--safe-l));
+  pointer-events: none;
+}
+.hud-res { display: flex; gap: 8px; flex: 0 0 auto; }
+.hud-res .chip b { font-weight: normal; min-width: 40px; }
+.hud-res .chip small { font-family: var(--font-hand); font-size: 15px; color: var(--ink-soft); }
+.hud-map { flex: 1 1 auto; display: flex; align-items: center; gap: 6px; max-width: 620px; margin: 0 auto; }
+.hud-map .mapwrap { position: relative; flex: 1; height: 34px; background: rgba(255,253,244,.88); border: 3px solid var(--ink-dark); border-radius: 8px; box-shadow: 0 3px 0 var(--ink-dark); }
+.hud-map canvas.minimap { width: 100%; height: 100%; display: block; cursor: pointer; }
+.hud-timer { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 4px); font-size: 15px; background: #fff; border: 2px solid var(--ink-dark); border-radius: 8px; padding: 0 8px; }
+.fortbar { width: 110px; height: 16px; background: #fff; border: 3px solid var(--ink-dark); border-radius: 8px; overflow: hidden; position: relative; box-shadow: 0 3px 0 var(--ink-dark); }
+.fortbar > i { position: absolute; top: 0; bottom: 0; width: 100%; transition: width .2s linear; }
+.fortbar.me > i { left: 0; background: var(--ink); }
+.fortbar.foe > i { right: 0; background: var(--red); }
+.hud-sys { display: flex; gap: 8px; flex: 0 0 auto; }
+.hud-sys .btn { min-width: 46px; }
+
+.hud-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--hud-bottom);
+  display: flex; align-items: flex-end; justify-content: center; gap: 14px;
+  padding: 0 calc(10px + var(--safe-r)) calc(10px + var(--safe-b)) calc(10px + var(--safe-l));
+  pointer-events: none;
+}
+.hud-stance { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+.hud-stance .btn { width: 104px; justify-content: space-between; padding: 5px 10px; }
+.hud-stance .btn .k { font-size: 12px; opacity: .6; margin-left: 6px; }
+.hud-stance .btn.active { outline: 3px solid var(--ink-dark); outline-offset: 2px; transform: translateY(-1px); }
+.hud-stance .btn span { display: flex; width: 100%; justify-content: space-between; align-items: center; }
+.hud-cards { display: flex; gap: 8px; align-items: flex-end; overflow-x: auto; overflow-y: visible; padding: 6px 4px 6px; scrollbar-width: none; flex: 0 1 auto; }
+.hud-cards::-webkit-scrollbar { display: none; }
+.ucard.full { filter: grayscale(.9) opacity(.75); }
+.ucard.pop { animation: card-pop .18s ease-out; }
+.ucard.shake { animation: card-shake .3s ease-in-out; }
+@keyframes card-pop { 0% { transform: scale(1); } 50% { transform: scale(.9); } 100% { transform: scale(1); } }
+@keyframes card-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px) rotate(-3deg); } 75% { transform: translateX(5px) rotate(3deg); } }
+.hud-spells { display: flex; gap: 8px; flex: 0 0 auto; }
+.spell, .ability {
+  width: 64px; height: 64px; background: #fff; border: 3px solid var(--ink-dark); border-radius: 50%;
+  box-shadow: 0 4px 0 var(--ink-dark); position: relative; overflow: hidden; cursor: pointer;
+}
+.spell img, .ability img { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); pointer-events: none; }
+.spell .key, .ability .key { position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); font-size: 12px; background: var(--paper-2); border: 2px solid var(--ink-dark); border-radius: 6px; padding: 0 4px; line-height: 13px; z-index: 2; }
+.spell .cd, .ability .cd { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(27,34,64,.45); pointer-events: none; }
+.spell.ready { animation: spell-ready 1.4s ease-in-out infinite; }
+.spell.armed { outline: 4px dashed var(--red); outline-offset: 3px; }
+@keyframes spell-ready { 0%,100% { box-shadow: 0 4px 0 var(--ink-dark); } 50% { box-shadow: 0 4px 0 var(--ink-dark), 0 0 0 6px rgba(242,176,30,.45); } }
+
+.hud-hero { position: absolute; left: calc(12px + var(--safe-l)); bottom: calc(var(--hud-bottom) + 14px); display: flex; align-items: flex-end; gap: 8px; pointer-events: none; }
+.hud-hero > * { pointer-events: auto; }
+.hero-face { width: 70px; height: 78px; background: #fff; border: 3px solid var(--ink-dark); border-radius: 12px; box-shadow: 0 4px 0 var(--ink-dark); position: relative; overflow: hidden; cursor: pointer; }
+.hero-face img { width: 100%; height: 62px; object-fit: contain; }
+.hero-face .hero-hp { position: absolute; left: 4px; right: 4px; bottom: 4px; height: 10px; border-width: 2px; }
+.hero-face .hero-hp > i { background: #3ec46d; }
+.hero-face .respawn { position: absolute; inset: 0; background: rgba(27,34,64,.6); color: #fff; font-size: 30px; display: flex; align-items: center; justify-content: center; }
+.ability { width: 52px; height: 52px; }
+.ability.ready { box-shadow: 0 4px 0 var(--ink-dark), 0 0 0 4px rgba(62,196,109,.5); }
+
+.hero-move { display: none; position: absolute; bottom: calc(var(--hud-bottom) + 110px); width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.85); border: 3px solid var(--ink-dark); box-shadow: 0 4px 0 var(--ink-dark); font-size: 26px; align-items: center; justify-content: center; }
+.hero-move.left { left: calc(14px + var(--safe-l)); }
+.hero-move.right { left: calc(92px + var(--safe-l)); }
+@media (pointer: coarse) { .hero-move { display: flex; } }
+
+.hud-banner { position: absolute; top: 26%; left: 50%; transform: translate(-50%, -50%) scale(.6); font-size: 40px; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .2s, transform .25s cubic-bezier(.2,1.6,.4,1); }
+.hud-banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.target-hint { position: absolute; top: calc(var(--hud-top) + 34px); left: 50%; transform: translateX(-50%); padding: 6px 14px; font-family: var(--font-hand); font-size: 20px; pointer-events: none; }
+
+@media (max-height: 520px) {
+  .hud-stance .btn { width: 86px; font-size: 14px; padding: 3px 8px; }
+  .spell { width: 52px; height: 52px; }
+  .ability { width: 44px; height: 44px; }
+  .hero-face { width: 56px; height: 62px; }
+  .hero-face img { height: 48px; }
+  .fortbar { width: 70px; }
+  .hud-res .chip { font-size: 16px; padding: 2px 8px 2px 4px; }
+  .hud-res .chip img { width: 20px; height: 20px; }
+  .hud-res .chip small { display: none; }
+  .hud-banner { font-size: 28px; }
+  .hero-move { bottom: calc(var(--hud-bottom) + 84px); width: 54px; height: 54px; }
+  .hero-move.right { left: calc(78px + var(--safe-l)); }
+}
+@media (max-width: 900px) {
+  .hud-bottom { justify-content: space-between; gap: 8px; }
+}

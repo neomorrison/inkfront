@@ -1,0 +1,32 @@
+// Sim entry point. Import Battle from here (not battle.js) so every registry is filled.
+import './behaviors/melee.js';
+import './behaviors/ranged.js';
+import './behaviors/worker.js';
+import './behaviors/hero.js';
+import './behaviors/cavalry.js';
+import './behaviors/bomber.js';
+import './behaviors/support.js';
+import './behaviors/caster.js';
+import './behaviors/siege.js';
+import './behaviors/assassin.js';
+import './behaviors/structure.js';
+import './behaviors/bosses.js';
+import './traits.js';
+import './traits_enemy.js';
+import './perks_units.js';
+import './perks.js';
+import './modifiers.js';
+import './modes.js';
+import './spells/pencil_rain.js';
+import './spells/coffee_spill.js';
+import './spells/ruler_smash.js';
+import './spells/paper_planes.js';
+import './spells/sticky_wall.js';
+import './spells/stapler.js';
+import './spells/highlighter.js';
+import './spells/doodle_drop.js';
+import './spells/eraser.js';
+
+export { Battle, PLAYER, ENEMY } from './battle.js';
+export { Unit } from './unit.js';
+export { Projectile } from './projectile.js';

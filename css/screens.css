@@ -1,0 +1,33 @@
+/* Menu screens. OWNER: meta UI builder (package H). */
+.title-screen { display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(255,253,244,.15) 0%, rgba(233,225,204,.55) 75%); }
+.title-card { display: flex; flex-direction: column; align-items: center; gap: 10px; transform: rotate(-1.5deg); }
+.logo { font-size: clamp(56px, 11vw, 140px); color: var(--ink); line-height: 1; letter-spacing: 2px;
+  text-shadow: 4px 0 0 var(--ink-dark), -4px 0 0 var(--ink-dark), 0 4px 0 var(--ink-dark), 0 -4px 0 var(--ink-dark), 3px 3px 0 var(--ink-dark), -3px -3px 0 var(--ink-dark), 3px -3px 0 var(--ink-dark), -3px 3px 0 var(--ink-dark), 0 10px 0 var(--ink-dark); }
+.tagline { font-size: 24px; background: var(--paper); padding: 4px 16px; border: 3px solid var(--ink-dark); border-radius: 8px; box-shadow: 0 4px 0 var(--ink-dark); }
+.title-buttons { display: flex; flex-direction: column; gap: 14px; align-items: center; margin-top: 18px; }
+
+.map-screen { overflow-y: auto; padding: 18px 24px 40px calc(84px + var(--safe-l)); }
+.map-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.map-chapter { margin: 18px 0; }
+.map-chapter h2 { font-size: 30px; margin-bottom: 10px; }
+.map-levels { display: flex; flex-wrap: wrap; gap: 14px; }
+.map-levels .btn { min-width: 150px; padding: 8px 14px; }
+.map-levels .btn .col { gap: 2px; align-items: center; }
+.map-levels .btn small { font-family: var(--font-hand); font-size: 16px; }
+.stars { display: flex; gap: 2px; }
+.stars img { width: 20px; height: 20px; }
+.stars.big img { width: 54px; height: 54px; }
+
+.results-screen { display: flex; align-items: center; justify-content: center; background: rgba(27,34,64,.35); }
+.results-card { padding: 30px 40px 26px 70px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: min(520px, 92vw); transform: rotate(.6deg); }
+.results-card h1 { font-size: 48px; }
+.results-card h1.win { color: var(--ink); }
+.results-card h1.lose { color: var(--red); }
+.results-stats { font-size: 20px; display: flex; gap: 18px; }
+.results-rewards { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.unlock { display: flex; align-items: center; gap: 10px; padding: 6px 14px; font-family: var(--font-marker); font-size: 20px; }
+.unlock img { width: 46px; height: 46px; }
+.results-buttons { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+
+.pause-card { padding: 30px 40px 30px 70px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.pause-card h1 { font-size: 46px; }
