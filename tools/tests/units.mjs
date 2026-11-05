@@ -234,7 +234,7 @@ const hitsBy = (b, src) => evs(b, 'hit').filter((e) => e.source === src);
 
 // ------------------------------------------------------------------ stat perks
 {
-  const team = { mods: { hp: 1, dmg: 1, speed: 1, atkSpeed: 1, armor: 0, kb: 1, rangedRange: 0, byUnit: {} } };
+  const team = { mods: { hp: 1, dmg: 1, speed: 1, atkSpeed: 1, armor: 0, kb: 1, rangedRange: 0, byUnit: {}, flags: {} } };
   const stat = (id, perk) => unitStats(UNITS[id], 1, team, new Set(perk ? [perk] : []));
   const pairs = [
     ['brawler', 'tough', 'hp', (a, c) => c > a * 1.19],

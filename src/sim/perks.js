@@ -21,7 +21,7 @@ const mine = (b, i) => b.units.filter((u) => u.alive && u.team === i && !u.def.s
 
 // Future melee units and Scribes read these team flags when they are created.
 STAT_HOOKS.push((def, lv, s, team) => {
-  const f = team.mods.flags;
+  const f = team.mods.flags || {};
   if (f.meleeDmg && def.tags && def.tags.includes('melee') && !def.hero && !def.boss) s.dmg *= f.meleeDmg;
   if (f.scribeHp && def.id === 'scribe') s.hp *= f.scribeHp;
 });

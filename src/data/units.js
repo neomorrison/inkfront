@@ -35,7 +35,7 @@ export const UNITS = {
   brawler: {
     id: 'brawler', name: 'Brawler', faction: 'ink', role: 'melee', behavior: 'melee',
     desc: 'Cheap, quick to draw, and happy to get stuck in. The backbone of any army.',
-    cost: 40, pop: 1, build: 2.2, hp: 130, dmg: 14, range: 30, atkCd: 1.0, windup: 0.32, speed: 80,
+    cost: 45, pop: 1, build: 2.2, hp: 130, dmg: 14, range: 30, atkCd: 1.0, windup: 0.32, speed: 80,
     armor: 0, mass: 1, kb: 30, rank: 1,
     tags: ['melee'], look: { weapon: 'sword', style: 'slash' },
     upgrade: { base: 90 },
@@ -88,7 +88,7 @@ export const UNITS = {
   archer: {
     id: 'archer', name: 'Archer', faction: 'ink', role: 'ranged', behavior: 'ranged',
     desc: 'High arcing arrows from far behind the lines. Great against slow crowds.',
-    cost: 110, pop: 1, build: 3.5, hp: 95, dmg: 22, range: 540, atkCd: 2.1, windup: 0.7, speed: 72,
+    cost: 100, pop: 1, build: 3.5, hp: 95, dmg: 25, range: 540, atkCd: 2.1, windup: 0.7, speed: 72,
     armor: 0, mass: 1, kb: 6, rank: 2,
     tags: ['ranged'], look: { weapon: 'bow', style: 'bow', hat: 'hood' },
     proj: { kind: 'arrow', speed: 640, arc: 0.9, gravity: 900, spread: 22, dmgKind: 'pierce' },
@@ -104,7 +104,7 @@ export const UNITS = {
     desc: 'Fast and heavy. The first hit of a charge deals huge damage and sends enemies flying.',
     cost: 165, pop: 2, build: 5, hp: 340, dmg: 26, range: 42, atkCd: 1.1, windup: 0.25, speed: 150,
     armor: 0.1, mass: 3, kb: 60, rank: 1, chargeMult: 2.5, chargeKb: 320,
-    tags: ['melee', 'cavalry'], traits: ['charge'], look: { weapon: 'lance', style: 'thrust', mount: 'horse', hat: 'helmet' },
+    tags: ['melee', 'cavalry'], traits: ['charge'], look: { weapon: 'lance', style: 'thrust', mount: 'horse', hat: 'helmet', anim: 'rider' },
     upgrade: { base: 160 },
     perks: {
       3: { id: 'barding', name: 'Barding', desc: '+15% armor.' },
@@ -115,7 +115,7 @@ export const UNITS = {
   bomber: {
     id: 'bomber', name: 'Bomber', faction: 'ink', role: 'melee', behavior: 'bomber',
     desc: 'Runs at the biggest crowd and goes boom. Also explodes when killed, so mind the front line.',
-    cost: 120, pop: 1, build: 4, hp: 75, dmg: 170, range: 26, atkCd: 1, windup: 0.15, speed: 128,
+    cost: 120, pop: 1, build: 4, hp: 75, dmg: 210, range: 26, atkCd: 1, windup: 0.15, speed: 128,
     armor: 0, mass: 1, kb: 220, rank: 0, aoe: { radius: 110 },
     tags: ['melee'], traits: ['deathBlast'], look: { weapon: 'bomb', style: 'punch', hat: 'goggles' },
     upgrade: { base: 130 },
@@ -142,7 +142,7 @@ export const UNITS = {
     id: 'doodler', name: 'Doodler', faction: 'ink', role: 'caster', behavior: 'caster',
     desc: 'Scribbles lightning that jumps between enemies, and doodles little critters to help.',
     cost: 230, pop: 2, build: 6, hp: 150, dmg: 46, range: 380, atkCd: 3.0, windup: 0.8, speed: 66,
-    armor: 0, mass: 1, kb: 20, rank: 3, chain: 3, chainFalloff: 0.7, summonEvery: 16, summonId: 'critter', summonMax: 2,
+    armor: 0, mass: 1, kb: 20, rank: 3, chain: 3, chainFalloff: 0.7, summonEvery: 12, summonId: 'critter', summonMax: 2,
     tags: ['caster'], look: { weapon: 'quill', style: 'cast', hat: 'wizard' },
     upgrade: { base: 170 },
     perks: {
@@ -154,7 +154,7 @@ export const UNITS = {
   catapult: {
     id: 'catapult', name: 'Catapult', faction: 'ink', role: 'siege', behavior: 'siege',
     desc: 'Hurls boulders across the page. Triple damage to forts. Cannot hit anything too close.',
-    cost: 330, pop: 3, build: 10, hp: 320, dmg: 95, range: 780, minRange: 140, atkCd: 4.6, windup: 1.0, speed: 40,
+    cost: 330, pop: 3, build: 10, hp: 320, dmg: 95, range: 780, minRange: 140, radius: 22, atkCd: 4.6, windup: 1.0, speed: 40,
     armor: 0.1, mass: 6, kb: 120, rank: 4, fortMult: 3,
     tags: ['siege', 'large'], look: { body: 'catapult', scale: 1, style: 'slam' },
     proj: { kind: 'boulder', speed: 560, arc: 1.2, gravity: 900, spread: 30, aoe: 85, dmgKind: 'blast' },
@@ -168,7 +168,7 @@ export const UNITS = {
   colossus: {
     id: 'colossus', name: 'Colossus', faction: 'ink', role: 'heavy', behavior: 'melee',
     desc: 'A giant doodle with a giant club. Every swing hits a crowd and knocks it flat.',
-    cost: 500, pop: 5, build: 14, hp: 1900, dmg: 80, range: 70, atkCd: 2.6, windup: 0.8, speed: 46,
+    cost: 550, pop: 5, build: 14, hp: 1600, dmg: 80, range: 70, atkCd: 2.6, windup: 0.8, speed: 46,
     armor: 0.15, mass: 12, kb: 300, rank: 0, aoe: { radius: 100, frontal: true },
     tags: ['melee', 'large'], look: { weapon: 'club', style: 'slam', scale: 2.5, bulk: 1.25 },
     upgrade: { base: 260 },
@@ -365,7 +365,7 @@ export const UNITS = {
   boss_wyrm: {
     id: 'boss_wyrm', name: 'The Neon Wyrm', faction: 'neon', role: 'boss', behavior: 'boss_wyrm', boss: true,
     desc: 'A highlighter dragon. Only arrows and spells reach it in the air; it lands to stomp.',
-    cost: 0, pop: 0, build: 0, hp: 8000, dmg: 70, range: 110, atkCd: 2.4, windup: 0.7, speed: 90,
+    cost: 0, pop: 0, build: 0, hp: 6500, dmg: 70, range: 110, atkCd: 2.4, windup: 0.7, speed: 90,
     armor: 0.1, mass: 30, kb: 260, rank: 0,
     tags: ['boss', 'large', 'flying'], look: { body: 'wyrm', scale: 1 },
   },
@@ -379,7 +379,7 @@ export const UNITS = {
   boss_hand: {
     id: 'boss_hand', name: 'The Hand', faction: 'eraser', role: 'boss', behavior: 'boss_hand', boss: true,
     desc: 'The hand that draws the page. It wants to erase this war.',
-    cost: 0, pop: 0, build: 0, hp: 16000, dmg: 120, range: 0, atkCd: 3, windup: 1, speed: 0,
+    cost: 0, pop: 0, build: 0, hp: 9000, dmg: 120, range: 0, atkCd: 3, windup: 1, speed: 0,
     armor: 0.1, mass: 999, kb: 300, rank: 0,
     tags: ['boss', 'large', 'flying'], look: { body: 'hand', scale: 1 },
   },
