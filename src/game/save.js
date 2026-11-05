@@ -33,7 +33,9 @@ export function defaultProfile() {
     },
     endless: { bestWave: 0, runs: 0 },
     daily: { lastWin: '', streak: 0, lastPlayed: '', attempts: 0 },
-    crates: 0,
+    crates: 0, // unopened supply crates
+    crateStars: 0, // how many 10-star crate milestones were already paid out
+    ui: { redInk: false, chapter: 0, armoryTab: 'units', armoryPick: '', heroTab: 'skills', loadoutLevel: '' }, // remembered menu state
     seen: {}, // tutorial and "new" flags: { 'tut.basics': true, 'new.unit.slinger': true }
     settings: { music: 0.55, sfx: 0.8, shake: true, numbers: true, quality: 'high', speed: 1, armyHats: false },
   };
@@ -71,12 +73,23 @@ export const Save = {
     this.data = defaultProfile();
     this.save();
   },
+  // Save code: "INK1:" + base64 of the JSON, safe for unicode and easy to paste anywhere.
   exportCode() {
-    return btoa(unescape(encodeURIComponent(JSON.stringify(this.data))));
+    const bytes = new TextEncoder().encode(JSON.stringify(this.data));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return 'INK1:' + btoa(bin);
   },
   importCode(code) {
-    const p = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-    if (!p || typeof p !== 'object' || !p.units) throw new Error('Not an Inkfront save');
+    let text = String(code || '').trim().replace(/\s+/g, '');
+    if (text.startsWith('INK1:')) text = text.slice(5);
+    let p = null;
+    try {
+      const bin = atob(text);
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      p = JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) { throw new Error('That is not a save code.'); }
+    if (!p || typeof p !== 'object' || !p.units || !p.levels || !p.hero) throw new Error('That is not an Inkfront save.');
     this.data = migrate(p);
     this.save();
     return this.data;
