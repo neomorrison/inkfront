@@ -17,7 +17,9 @@ Side view lane battle. Your fort on the left, the enemy fort on the right. Destr
 - **Stances**: DEFEND (S) holds a line in front of your fort, HOLD (F, or right-click / long-press the battlefield) holds at a flag you plant, CHARGE (W) pushes to the enemy fort. Units sort into formation rows: tanks front, melee, ranged, support, siege.
 - **The Captain** (hero): A/D or arrows (touch: on-screen arrows) to walk him; he fights whatever he reaches. Q Rally Cry (hero level 2), E Ink Slam (level 4), R Inkstorm when the Fury meter is full (level 7). After 5 s without input he rejoins the army AI. Respawns at the fort.
 - **Supplies (spells)**: up to 3 per battle, keys Z/X/C or tap then tap the battlefield. Free, on cooldown, start half charged.
-- **Camera**: drag the battlefield, mouse wheel, click the minimap; follows the Captain while you steer him.
+- **Camera**: drag the battlefield, mouse wheel, click or drag the minimap; follows the Captain while you steer him, and eases toward the action when left alone (Follow/Free toggle, V).
+- **The enemy commander** plays by the same rules (Scribes, ink, stances) and attacks in waves on a rhythm set by the level, raids your Scribes with fast units, regroups after a lost push, and goes all-in after about four minutes so stalemates end. Bosses advance on your army and fort.
+- **Ink cap**: banked ink stops at 3,000, so ink is always meant to be spent.
 
 ## Units (player roster)
 Unlock order through the campaign: Scribe and Brawler at start, then Slinger, Shieldbearer, Spearman, Archer, Bomber, Medic, Rider, Doodler, Catapult, Colossus, Ninja. Stats and perks live in `src/data/units.js`.
@@ -56,7 +58,9 @@ Tutorial (one goal at a time, arrows that point at real UI):
 - 1-1 basics: draw a Scribe, draw Brawlers, press CHARGE, push the enemy fort. AI stays passive until the player has 3 Brawlers or 40 s pass.
 - 1-2 spells: cast Pencil Rain. 1-3 stance: DEFEND vs an ambush, then CHARGE. 1-4 hero: walk the Captain with A/D.
 
-**Red Ink mode** (hard) unlocks after the Hand: every level again with stronger enemies, separate stars, 1.8x gold.
+Beating the Hand plays a short scribbled ending ("The End") before the results.
+
+**Red Ink mode** (hard) unlocks after the Hand: every level again with stronger enemies that scale with your army's upgrade level, separate stars, 1.8x gold.
 
 ## Progression and economy
 - **Gold** from battles, achievements, crates, endless and daily. Spent in the Armory: unit levels, fort upgrades (walls, tower, ink press, reserves, scribe quarters, barracks, deeper wells), spell levels 1-5.
