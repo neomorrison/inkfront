@@ -34,7 +34,7 @@ export function campaignConfig(opts, profile) {
     hard: !!opts.hard,
     tutorial: opts.hard ? null : level.tutorial || null,
     modifiers: (level.modifiers || []).slice(),
-    teams: [playerTeamConfig(profile), enemyTeamConfig(level, { hard: opts.hard })],
+    teams: [playerTeamConfig(profile), enemyTeamConfig(level, { hard: opts.hard, profile })],
   };
 }
 
@@ -85,11 +85,14 @@ export function enemyBlock(faction, power, o = {}) {
     aggression: +mix(1.4, 0.92, p).toFixed(2),
     firstAttack: Math.round(mix(60, 38, p)),
     maxArmy,
+    waveEvery: Math.round(mix(72, 42, p)),
   };
   if (o.rush) {
+    // A fair ambush: a small raiding party (3 to 5 units), never the whole page.
     const front = roster.filter((id) => UNITS[id].role === 'melee' || UNITS[id].role === 'tank').slice(0, 2);
     e.startUnits = {};
-    front.forEach((id, i) => { e.startUnits[id] = Math.round(mix(3, 7, p)) - i; });
+    const total = Math.round(mix(3, 5, p));
+    front.forEach((id, i) => { e.startUnits[id] = i === 0 ? Math.ceil(total * 0.6) : Math.floor(total * 0.4); });
     e.firstAttack = Math.min(e.firstAttack, 25);
   }
   return Object.assign(e, o.override || {});

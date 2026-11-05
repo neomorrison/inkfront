@@ -4,6 +4,8 @@
 //   node tools/sim.mjs all --runs 3      every level, 3 seeds each, table of results
 // Options: --runs N  --hard  --unit-level N (player unit upgrade level, default = expected for the level)
 //          --fort-level N  --hero-level N  --under N (N unit levels below expected)  --skill X (bot speed, 1 = full)
+//          --scribes N (cap the bot's Scribes: 1 = a casual player who barely draws them)
+//          --defend (a defend-first player: waits for a big edge, attacks late)
 //          --report (compact table)  --json (writes tools/out/balance.json)
 //   node tools/sim.mjs endless [--at 4-1]   endless run with the bot picking perks
 //   node tools/sim.mjs daily | skirmish    daily dates / every faction x difficulty
@@ -97,7 +99,7 @@ export function expectedProfile(levelId, o = {}) {
 export function botAI(cfg, o = {}) {
   const roster = cfg.teams[0].roster.filter((id) => id !== 'scribe');
   return {
-    scribes: cfg.teams[0].scribeCap,
+    scribes: o.scribes ?? cfg.teams[0].scribeCap,
     weights: roleWeights(roster),
     aggression: o.aggression ?? 1.1,
     firstAttack: o.firstAttack ?? 40,
@@ -106,6 +108,7 @@ export function botAI(cfg, o = {}) {
     spellMin: 5, spellAfter: 25, // casts on real clusters, not the first stragglers
     thinkMul: 1 / (o.skill ?? 1),
     sally: !!o.sally,
+    raid: 0,
   };
 }
 
@@ -159,9 +162,10 @@ const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
 export function measureLevel(id, runs, o = {}) {
   const rows = [];
   for (let s = 0; s < runs; s++) {
-    const p = expectedProfile(id, { unitLevel: o.unitLevel, fortLevel: o.fortLevel, heroLevel: o.heroLevel, under: o.under });
+    // Red Ink unlocks after the Hand, so the player has everything unlocked (default profile = end of campaign).
+    const p = expectedProfile(o.hard ? '5-6' : id, { unitLevel: o.unitLevel, fortLevel: o.fortLevel, heroLevel: o.heroLevel, under: o.under });
     const cfg = campaignConfig({ levelId: id, seed: 1000 + s * 17, hard: !!o.hard }, p);
-    cfg.teams[0].ai = botAI(cfg, { skill: o.skill });
+    cfg.teams[0].ai = botAI(cfg, { skill: o.skill, scribes: o.scribes, ...(o.defend ? { aggression: 2.2, firstAttack: 150 } : {}) });
     const b = runBattle(cfg);
     const r = summarize(b);
     r.fortPct = (b.teams[0].fort.hp / b.teams[0].fort.maxHp) * 100;
@@ -179,7 +183,7 @@ export function measureLevel(id, runs, o = {}) {
 
 async function main() {
   const t0 = Date.now();
-  const fmt = { under: opt('under', 0), skill: opt('skill', 1) };
+  const fmt = { under: opt('under', 0), skill: opt('skill', 1), scribes: opt('scribes') === undefined ? undefined : opt('scribes'), defend: !!opt('defend') };
   if (target === 'demo') {
     for (let s = 1; s <= (opt('runs', 3)); s++) {
       const b = runBattle(demoConfig({ seed: s }), 400);

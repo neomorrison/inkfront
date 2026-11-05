@@ -15,12 +15,19 @@ const ids = args[0] && !args[0].startsWith('--') ? args[0].split(',') : LEVELS.m
 const runs = opt('runs', 10), iters = opt('iters', 6);
 
 // Win-rate target per chapter (%) for regular and boss levels. 1-1..1-4 stay near 100 so a new player is never stuck.
+// Chapters 2-5 sit a little lower than a pure "bot wins" bar so a human feels pressure; the finale is meant to be a
+// real fight (the bot cannot dodge the Hand's sweeps, so ~50% for the bot is a fair fight for a person who can).
 const TARGETS = {
-  regular: { 1: 97, 2: 92, 3: 88, 4: 84, 5: 80 },
-  boss: { 1: 85, 2: 80, 3: 75, 4: 70, 5: 62 },
+  regular: { 1: 97, 2: 90, 3: 85, 4: 80, 5: 75 },
+  boss: { 1: 80, 2: 75, 3: 70, 4: 65, 5: 50 },
 };
 const targetFor = (L) => (L.boss ? TARGETS.boss[L.chapter] : L.id === '1-1' ? 100 : TARGETS.regular[L.chapter]);
-const BOUNDS = { lo: 0.2, hi: 2.5 }; // past ~2.5 a level is no longer the level it was designed as
+const BOUNDS = { lo: 0.2, hi: 2.5 };
+// The finale never drops below its design: the Hand is a real fight (boss hp/dmg scale >= 0.85, no negative enemy
+// level). Its escort (income, ink, army) can still scale down to land the bot at a fair rate.
+// The Hand fights alone: its escort may shrink to almost nothing so a bot that cannot dodge still lands around 30-50%.
+const LOWS = { '5-6': 0.05 };
+const FLOORS = { '5-6': { boss: 0.85, level: 0 } }; // past ~2.5 a level is no longer the level it was designed as
 // A new player must never meet a punishing opening, however strong the bot is.
 const CAPS = { '1-1': 1.0, '1-2': 1.15, '1-3': 1.3, '1-4': 1.4, '1-5': 1.5, '1-6': 1.45, '2-1': 1.8, '2-2': 1.8, '2-3': 1.8, '2-4': 1.7 };
 
@@ -33,6 +40,12 @@ export function dialToTune(L, k) {
     level: Math.round(Math.log(k) / Math.log(1.6)),
   };
   if (L.boss) { t.bossHp = +Math.pow(k, 0.6).toFixed(3); t.bossDmg = +Math.pow(k, 0.4).toFixed(3); }
+  t.waves = +Math.pow(k, -0.5).toFixed(3);
+  const fl = FLOORS[L.id];
+  if (fl) {
+    t.level = Math.max(fl.level, t.level);
+    if (L.boss) { t.bossHp = Math.max(fl.boss, t.bossHp); t.bossDmg = Math.max(fl.boss, t.bossDmg); }
+  }
   return t;
 }
 
@@ -46,7 +59,8 @@ for (const id of ids) {
   const L = LEVELS.find((l) => l.id === id);
   const target = targetFor(L);
   const top = Math.min(BOUNDS.hi, CAPS[id] ?? BOUNDS.hi);
-  let lo = BOUNDS.lo, hi = top, best = 1;
+  const floor = LOWS[id] ?? BOUNDS.lo;
+  let lo = floor, hi = top, best = 1;
   // Win rate falls as the dial rises: keep the largest dial that still meets the target.
   let found = null;
   for (let it = 0; it < iters; it++) {
@@ -55,10 +69,10 @@ for (const id of ids) {
     const m = measureLevel(id, runs, { under: opt('under', 0) });
     const ok = m.winPct >= target;
     if (ok) { found = { k, m }; lo = k; } else hi = k;
-    if (it === 0 && !ok) { lo = BOUNDS.lo; hi = 1; }
+    if (it === 0 && !ok) { lo = floor; hi = 1; }
     if (it === 0 && ok) { lo = 1; hi = top; }
   }
-  best = found ? found.k : BOUNDS.lo;
+  best = found ? found.k : floor;
   setDial(L, best);
   const fin = measureLevel(id, runs, { under: opt('under', 0) });
   result[id] = TUNE.auto[id];

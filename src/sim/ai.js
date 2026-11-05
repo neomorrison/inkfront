@@ -98,6 +98,30 @@ export class AICommander {
     this.phaseT = 0; // time spent in the current phase
     this.penalty = 1; // after a failed push the next one wants a bigger edge
     this.badTicks = 0;
+    // Pressure: timed attack waves, raids on the Scribes, and an escalation that ends long stalemates.
+    this.nextWave = (profile.firstAttack ?? 45) * (0.9 + b.rng.next() * 0.2);
+    this.nextRaid = (profile.firstAttack ?? 45) + 20 + b.rng.next() * 25;
+    this.nextFree = profile.freeWaves ? (profile.freeWaves.first ?? 25) : Infinity;
+    this.freeCount = 0;
+    this.raiders = new Map(); // unit -> time the raid ends
+    this.escLevel = 0;
+    this.waves = 0;
+    this.noRetreatUntil = 0;
+    if (teamIdx === 1 && b.flags && b.flags.rush && b.cfg.teams[1].startUnits) this.beginRush();
+  }
+
+  // Ambush: the starting army is already out on the field. Move it up the page and send it at the
+  // player's fort right now, without turning back until the opening clash is settled.
+  beginRush() {
+    const t = this.team;
+    for (const u of this.b.units) {
+      if (u.team !== this.teamIdx || u.type === 'scribe' || u.isHero) continue;
+      u.x = t.fort.x + t.dir * (850 + this.b.rng.range(0, 300));
+    }
+    this.rush = true;
+    this.noRetreatUntil = 50;
+    this.setPhase('push');
+    this.nextWave = Math.max(this.nextWave, 55);
   }
 
   say(text) {
@@ -148,9 +172,95 @@ export class AICommander {
     if (this.thinkT > 0) return;
     this.thinkT = (0.4 + b.rng.next() * 0.3) * (p.thinkMul ?? 1);
 
+    this.escalate();
     this.economy();
     this.draw();
     this.stance();
+    this.raids();
+    this.freeWave();
+  }
+
+  // ------------------------------------------------------------------ pressure
+  // After a few minutes without a result the commander gets desperate: faster ink, faster drawing,
+  // a bigger army cap, shorter gaps between waves and, from the second step, no more retreating.
+  escalate() {
+    const p = this.p, t = this.team;
+    const at = p.escalateAt ?? (p.waveEvery > 0 ? 240 : Infinity);
+    if (this.t < at) return;
+    const lvl = Math.min(5, 1 + Math.floor((this.t - at) / 50));
+    while (this.escLevel < lvl) {
+      this.escLevel++;
+      t.income *= 1.15;
+      t.mods.build *= 0.88;
+      t.popCap += 3;
+      this.penalty = 1;
+      if (this.escLevel === 1) this.say('The enemy is throwing everything at you!');
+    }
+  }
+
+  waveGap() {
+    const p = this.p;
+    return (p.waveEvery ?? 60) * (0.85 + this.b.rng.next() * 0.3) * Math.pow(0.78, this.escLevel);
+  }
+
+  startWave() {
+    this.waves++;
+    this.nextWave = this.t + this.waveGap();
+    this.setPhase('push');
+  }
+
+  // Fast units sometimes dash past the front line, either for the player's Scribes and wells or straight at the
+  // fort, while the rest of the army fights or musters. Defending the home line matters because of them.
+  raids() {
+    const b = this.b, p = this.p, now = this.t;
+    const foes = b.byTeam[this.opp].filter((u) => u.alive && u.targetable && !u.stealth && u.type === 'scribe');
+    const fort = b.teams[this.opp].fort;
+    for (const [u, r] of this.raiders) {
+      let prey = null;
+      if (r.fort && fort.alive) prey = fort;
+      else {
+        let bd = Infinity;
+        for (const f of foes) { const d = Math.abs(f.x - u.x); if (d < bd) { bd = d; prey = f; } }
+        if (!prey && fort.alive) prey = fort;
+      }
+      if (!u.alive || now > r.end || !prey || u.hp < u.maxHp * 0.35 || this.passive) {
+        this.raiders.delete(u);
+        if (u.alive) { u.target = null; u.retargetT = 0; }
+        continue;
+      }
+      u.target = prey;
+      u.retargetT = 1.2;
+    }
+    const rc = p.raid ?? (p.waveEvery > 0 ? 0.7 : 0);
+    if (!(rc > 0) || now < this.nextRaid || this.raiders.size || !fort.alive) return;
+    this.nextRaid = now + 26 + b.rng.next() * 24;
+    if (!b.rng.chance(rc)) return;
+    const pool = b.byTeam[this.teamIdx].filter((u) => u.alive && !u.isBoss && !u.isHero && !u.summoned && !u.attacking
+      && u.def.speed >= 76 && !u.tags.has('tank') && !u.tags.has('large') && (u.def.behavior === 'melee' || u.def.behavior === 'cavalry'));
+    pool.sort((a, c) => c.def.speed - a.def.speed || a.id - c.id); // the quickest runners go
+    const n = this.escLevel >= 1 ? 3 : 2;
+    const atFort = !foes.length || b.rng.chance(0.4);
+    for (const u of pool.slice(0, n)) this.raiders.set(u, { end: now + 24, fort: atFort });
+  }
+
+  // Survive levels: reinforcements arrive on a timer even if the player has wrecked the enemy economy.
+  freeWave() {
+    const fw = this.p.freeWaves;
+    if (!fw || this.t < this.nextFree) return;
+    this.nextFree = this.t + fw.every * (0.9 + this.b.rng.next() * 0.2);
+    const b = this.b, t = this.team;
+    let budget = fw.budget * (1 + 0.1 * this.freeCount++);
+    const weights = this.pickWeights();
+    let i = 0;
+    for (let guard = 0; guard < 12 && budget > 40; guard++) {
+      const id = b.rng.weighted(weights);
+      if (!id || !UNITS[id]) break;
+      if (UNITS[id].cost > budget + 60) continue;
+      budget -= UNITS[id].cost;
+      b.spawnUnit(this.teamIdx, id, { x: t.fort.x + t.dir * (70 + (i++) * 14) });
+    }
+    if (fw.say && this.freeCount % 2 === 1) this.say(fw.say);
+    if (this.phase !== 'push') this.setPhase('push');
   }
 
   // ------------------------------------------------------------------ economy and drawing
@@ -179,11 +289,11 @@ export class AICommander {
   draw() {
     const b = this.b, t = this.team, p = this.p;
     const want = Math.min(p.scribes ?? 3, t.scribeCap);
-    if (t.scribes < Math.min(1, want)) return; // economy first
+    if (t.scribes < Math.min(1, want) && this.t < 30) return; // economy first (but never freeze if the Scribes get wiped out)
     const army = t.pop - t.scribes;
     // Sitting on a fortune? Field a few more, and lean toward the pricey units.
     const rich = t.ink > 450;
-    if (army >= (p.maxArmy ?? 20) * (rich ? 1.3 : 1)) return;
+    if (army >= (p.maxArmy ?? 20) * (rich ? 1.3 : 1) * (1 + 0.12 * this.escLevel)) return;
     this.rich = rich;
     this.nextSince += this.thinkT;
     // Re-pick often enough that counters track the fight, and never sit saving for something far off.
@@ -225,10 +335,17 @@ export class AICommander {
       // The bar for "big enough" drops the longer it musters, so an AI that cannot reach its ideal size still attacks.
       const need = pushSize * Math.max(0.35, 1 - this.phaseT / 160);
       const full = army >= need;
-      const edge = mine > theirs * aggr + 60;
+      const edge = mine > theirs * aggr + 60 || this.escLevel >= 1;
       const stale = this.phaseT > 120 && army >= maxArmy * 0.8 && mine > theirs * 0.7;
       const withBoss = bossOut && this.t > this.bossT + 6 && mine > theirs * 0.6 && army >= pushSize * 0.4;
-      if ((full && edge) || stale || withBoss) this.setPhase('push');
+      // On a rhythm the commander attacks with whatever it has, as long as it is a real force.
+      const minForce = p.minForce ?? Math.max(2, Math.min(7, Math.round(maxArmy * 0.22)));
+      const timed = p.waveEvery > 0 && this.t >= this.nextWave && army >= minForce;
+      if (timed) this.startWave();
+      else if ((full && edge) || stale || withBoss) {
+        this.setPhase('push');
+        if (p.waveEvery > 0) this.nextWave = Math.max(this.nextWave, this.t + this.waveGap() * 0.7);
+      }
       return;
     }
 
@@ -239,9 +356,15 @@ export class AICommander {
     const theirsNear = armyPower(b, this.opp, front);
     const ef = b.teams[this.opp].fort;
     const finishing = ef.alive && ef.hp < ef.maxHp * 0.3 && mineNear > theirsNear * 0.6;
-    if (!finishing && this.phaseT > 3 && mineNear < theirsNear * 0.55) this.badTicks++;
+    const committed = this.t < this.noRetreatUntil || this.escLevel >= 2;
+    if (!finishing && !committed && this.phaseT > 3 && mineNear < theirsNear * 0.55) this.badTicks++;
     else this.badTicks = Math.max(0, this.badTicks - 1);
-    if (this.badTicks >= 3) { this.penalty = Math.min(1.6, this.penalty * 1.2); this.setPhase('muster'); return; }
+    if (this.badTicks >= 3) {
+      this.penalty = Math.min(1.6, this.penalty * 1.2);
+      this.nextWave = Math.max(this.nextWave, this.t + this.waveGap() * 0.6); // regroup before trying again
+      this.setPhase('muster');
+      return;
+    }
 
     // Protect the Scribes: raiders at the wells while the army is away means turn around.
     const home = t.fort.x;
@@ -249,10 +372,13 @@ export class AICommander {
     if (raid > 0) {
       const defenders = armyPower(b, idx, home);
       const away = Math.abs(front - home) > 900;
-      if (away && raid > defenders * 0.9 && raid > mine * 0.3) { this.setPhase('muster'); return; }
+      if (away && !committed && raid > defenders * 0.9 && raid > mine * 0.3) { this.setPhase('muster'); return; }
     }
     // Everything dead on both sides and nothing left to push with: regroup at home.
-    if (army <= 1 && !bossOut) this.setPhase('muster');
+    // A spent wave falls back and regroups with the new units instead of feeding them in one by one.
+    const minForce = p.minForce ?? Math.max(2, Math.min(7, Math.round(maxArmy * 0.22)));
+    const spent = p.waveEvery > 0 && !finishing && !committed && this.phaseT > 8 && army < Math.max(2, Math.ceil(minForce * 0.5));
+    if ((army <= 1 || spent) && !bossOut) this.setPhase('muster');
     else if (this.phaseT > 3) this.penalty = Math.max(1, this.penalty * 0.999);
   }
 
