@@ -20,14 +20,19 @@ export const HERO_ABILITIES = {
   slam: {
     id: 'slam', key: 'E', name: 'Ink Slam', unlockLevel: 4, cd: 10,
     desc: 'Leap forward and slam the ground, damaging and knocking back enemies.',
-    leap: 170, radius: 120, dmg: 90,
+    leap: 170, radius: 120, dmg: 90, air: 0.35, kb: 320, stun: 0.3,
   },
   inkstorm: {
     id: 'inkstorm', key: 'R', name: 'Inkstorm', unlockLevel: 7, fury: 100,
     desc: 'When the Fury meter is full: spin into a storm of blades for 4 seconds.',
-    dur: 4, dps: 120, radius: 95,
+    dur: 4, dps: 120, radius: 95, tick: 0.25, speedMul: 1.15,
   },
 };
+
+// Basic combat feel: a 3-hit combo (the third swing is heavy), Fury meter, Inspire aura.
+export const HERO_COMBO = { window: 1.3, heavyMult: 1.7, heavyRadius: 80, heavyKb: 2.4, heavyWindup: 1.45, steerAttackSpeed: 0.4 };
+export const HERO_FURY = { max: 100, perDealt: 1 / 6, perTaken: 1 / 10 };
+export const HERO_INSPIRE = { radius: 260, interval: 0.5, perRank: 0.05 };
 
 // Skill tree. Each level-up grants one point. req = minimum hero level.
 export const HERO_SKILLS = [
