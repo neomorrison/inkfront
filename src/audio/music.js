@@ -8,10 +8,16 @@ import { TRACKS } from './tracks.js';
 // Tracks that may be replaced by assets/music/<name>.mp3. A missing file is probed once with fetch HEAD
 // and the answer is cached. Opt-in (?musicfiles in the URL, or window.INKFRONT_MUSIC_FILES = [...] before
 // boot) because a missing file shows up as a console 404.
+// The game ships recorded tracks for these; ?nomusicfiles forces the procedural versions.
 export const FILE_TRACKS = (typeof window !== 'undefined' && Array.isArray(window.INKFRONT_MUSIC_FILES))
   ? window.INKFRONT_MUSIC_FILES
-  : (typeof location !== 'undefined' && /[?&]musicfiles\b/.test(location.search))
-    ? ['menu', 'battle', 'boss', 'victory', 'defeat'] : [];
+  : (typeof location !== 'undefined' && /[?&]nomusicfiles\b/.test(location.search))
+    ? [] : ['menu', 'battle', 'boss', 'final'];
+// Alternate recordings picked at random each time a track starts.
+const FILE_VARIANTS = { battle: ['battle', 'battle2'], boss: ['boss', 'boss2'] };
+// Tracks with no procedural score of their own borrow one (used only if the file cannot play).
+const SCORE_FOR = { final: 'boss' };
+const FILE_GAIN = 0.8;
 
 const TICK_MS = 50;
 const LOOKAHEAD = 0.45;
@@ -70,7 +76,7 @@ export const Music = {
   },
 
   start(name) {
-    const def = TRACKS[name];
+    const def = TRACKS[name] || TRACKS[SCORE_FOR[name]];
     if (!def) return;
     const ctx = Audio.ctx;
     const t = ctx.currentTime;
@@ -80,7 +86,7 @@ export const Music = {
     gain.connect(mix);
     const inst = {
       name, def, gain, t0: t, dead: false, step: 0, nextTime: t + 0.06, layers: [], file: null,
-      finished: false, doneAt: 0,
+      finished: false, doneAt: 0, waitFile: FILE_TRACKS.includes(name),
     };
     for (const L of def.layers) {
       const lg = ctx.createGain();
@@ -94,21 +100,28 @@ export const Music = {
     const fade = def.fadeIn ?? FADE;
     gain.gain.setTargetAtTime(1, t, fade / 3);
     probeFile(name).then((ok) => {
-      if (!ok || inst.dead || this.cur !== inst) return;
+      if (!ok) { inst.waitFile = false; return; }
+      if (inst.dead || this.cur !== inst) return;
       this.useFile(inst);
     });
   },
 
   useFile(inst) {
     try {
+      const vars = FILE_VARIANTS[inst.name] || [inst.name];
+      const pick = vars[Math.floor(Math.random() * vars.length)];
       const el = document.createElement('audio');
-      el.src = `assets/music/${inst.name}.mp3`;
+      el.src = `assets/music/${pick}.mp3`;
       el.loop = !inst.def.once;
-      el.crossOrigin = 'anonymous';
+      el.preload = 'auto';
       const src = Audio.ctx.createMediaElementSource(el);
-      src.connect(inst.gain);
-      el.play().then(() => { inst.file = el; }).catch(() => {});
-    } catch (e) { /* stay procedural */ }
+      const g = Audio.ctx.createGain();
+      g.gain.value = FILE_GAIN;
+      src.connect(g);
+      g.connect(inst.gain);
+      inst.waitFile = true;
+      el.play().then(() => { inst.file = el; inst.waitFile = false; }).catch(() => { inst.waitFile = false; });
+    } catch (e) { inst.waitFile = false; /* stay procedural */ }
   },
 
   retire(inst, secs) {
@@ -174,7 +187,7 @@ export const Music = {
     const insts = this.cur ? [this.cur, ...this.old] : this.old;
     for (const inst of insts) {
       if (inst.dead) continue;
-      if (this.active && !inst.file) this.schedule(inst, t);
+      if (this.active && !inst.file && !inst.waitFile) this.schedule(inst, t);
       if (inst === this.cur) this.updateLayers(inst, t);
     }
     // A finished stinger hands over to the next track.
@@ -246,7 +259,7 @@ export const Music = {
       case 'fortDestroyed': this.noteHit(0.5); break;
       case 'bossArrive':
         clearTimeout(this.bossT);
-        this.bossT = setTimeout(() => { if (this.session === session && !session.ended) this.request('boss'); }, 1100);
+        this.bossT = setTimeout(() => { if (this.session === session && !session.ended) this.request(e.id === 'boss_hand' ? 'final' : 'boss'); }, 1100);
         break;
       case 'bossDefeated':
         clearTimeout(this.bossT);

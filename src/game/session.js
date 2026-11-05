@@ -355,8 +355,10 @@ export class Session {
     this.cam.lookAt(lose.x, 0.5);
     Audio.play(win ? 'victory' : 'defeat');
     setTimeout(() => {
-      this.app.loop.timeScale = 1;
+      // Rewards always count, even if the player left during the slow-motion beat.
       this.summary = applyBattleResult(this.profile, this);
+      if (this.app.session !== this) return;
+      this.app.loop.timeScale = 1;
       bus.emit('battleEnd', { session: this, summary: this.summary });
       UI.show('results', { session: this, summary: this.summary });
     }, 1900);

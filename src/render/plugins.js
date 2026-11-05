@@ -12,3 +12,4 @@ import './overlays.js';
 import './fxevents.js';
 import './icons_more.js';
 import './modes_draw.js';
+import './structures.js';
