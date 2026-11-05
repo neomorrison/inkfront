@@ -19,6 +19,26 @@ export const MODIFIERS = {
   coffee_stains: { name: 'Coffee Stains', desc: 'Sticky stains on the ground slow everyone who walks through.' },
 };
 
+// ---------------------------------------------------------------------------------------------
+// BALANCE KNOBS. The level definitions below hold each level's identity (roster, weights, modifiers,
+// script). Difficulty is tuned HERE and applied at load, so re-balancing after other packages land
+// means re-running:   node tools/tune.mjs --write     (then check:  node tools/sim.mjs all --runs 5 --report)
+//   level      added to enemy unit upgrade level (can be negative)
+//   income, fortHp, startInk, army (maxArmy), turret (tower dmg)   multipliers
+//   aggression added (lower = attacks sooner); firstAttack seconds added; bossAt seconds added
+//   bossHp, bossDmg  multipliers on the level's boss (written into enemy.mods.byUnit)
+// Scopes combine in this order: all, chapter (1-5), single level id, auto (written by the tuner).
+export const TUNE = {
+  all: { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1 },
+  chapter: {}, // e.g. { 3: { level: -1 } }
+  level: {}, // hand overrides, same keys as `all`
+  // Written by `node tools/tune.mjs --write`: one dial per level found by bisection against the bot.
+  auto: {
+    // AUTOTUNE:BEGIN
+    // AUTOTUNE:END
+  },
+};
+
 export const HARD_MODE = { enemyHp: 1.6, enemyDmg: 1.35, enemyIncome: 1.45, fortHp: 1.5, levelBonus: 2, gold: 1.8 };
 
 const L = (o) => o;
@@ -194,6 +214,34 @@ export const LEVELS = [
       bossAt: 20, invulnerableFort: true },
     win: 'boss', rewards: { gold: 1200, xp: 500, unlock: { hat: 'crown', mode: 'hard' } } }),
 ];
+
+const BASE_ENEMY = LEVELS.map((l) => JSON.parse(JSON.stringify(l.enemy)));
+
+// Re-derive every level's enemy block from its untuned base and the current TUNE (tools/tune.mjs calls this).
+export function retune() {
+  LEVELS.forEach((L, i) => {
+    const e = (L.enemy = JSON.parse(JSON.stringify(BASE_ENEMY[i])));
+    const t = { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1 };
+    for (const src of [TUNE.all, TUNE.chapter[L.chapter], TUNE.level[L.id], TUNE.auto[L.id]]) {
+      if (!src) continue;
+      for (const k in src) t[k] = ['level', 'aggression', 'firstAttack', 'bossAt'].includes(k) ? t[k] + src[k] : t[k] * src[k];
+    }
+    e.level = Math.max(1, Math.round((e.level || 1) + t.level));
+    e.income = +((e.income ?? 1.5) * t.income).toFixed(3);
+    e.fortHp = Math.round((e.fortHp ?? 1500) * t.fortHp);
+    e.startInk = Math.round((e.startInk ?? 150) * t.startInk);
+    e.maxArmy = Math.max(3, Math.round((e.maxArmy ?? 20) * t.army));
+    if (e.turret) e.turret = { ...e.turret, dmg: Math.round(e.turret.dmg * t.turret) };
+    e.aggression = +((e.aggression ?? 1.2) + t.aggression).toFixed(2);
+    e.firstAttack = Math.max(5, Math.round((e.firstAttack ?? 45) + t.firstAttack));
+    if (e.bossAt != null) e.bossAt = Math.max(5, e.bossAt + t.bossAt);
+    if (L.boss && (t.bossHp !== 1 || t.bossDmg !== 1)) {
+      e.mods = { ...(e.mods || {}), byUnit: { ...((e.mods && e.mods.byUnit) || {}), [L.boss]: { hp: t.bossHp, dmg: t.bossDmg } } };
+    }
+  });
+  return LEVELS;
+}
+retune();
 
 export const LEVEL_BY_ID = Object.fromEntries(LEVELS.map((l) => [l.id, l]));
 
