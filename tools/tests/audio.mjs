@@ -41,7 +41,7 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + (e.stack || e.message)))
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
 try {
-  await page.goto(url);
+  await page.goto(url + '?nomusicfiles'); // procedural music checks; file playback is checked at the end
   await page.waitForFunction(() => window.App && window.App.ready, null, { timeout: 10000 });
   await page.mouse.click(640, 360); // user gesture: unlocks audio
   await page.waitForTimeout(500);
@@ -235,8 +235,31 @@ try {
   errors.push('test: ' + (e.stack || e.message));
 }
 
+// Recorded music files: the shipped tracks stream and replace the procedural score.
+try {
+  const p2 = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
+  p2.on('pageerror', (e) => errors.push('pageerror(files): ' + e.message));
+  await p2.goto(url);
+  await p2.waitForFunction(() => window.App && window.App.ready, null, { timeout: 15000 });
+  await p2.mouse.click(640, 360);
+  const files = await p2.evaluate(async () => {
+    const { Music } = await import('./src/audio/music.js');
+    const res = {};
+    for (const name of ['menu', 'battle', 'boss', 'final']) {
+      Music.request(name);
+      await new Promise((r) => setTimeout(r, 1800));
+      const f = Music.cur && Music.cur.file;
+      res[name] = { cur: Music.cur && Music.cur.name, file: !!f, playing: !!f && !f.paused, src: f ? f.src.split('/').pop() : null };
+    }
+    return res;
+  });
+  for (const [n, r] of Object.entries(files)) check(r.cur === n && r.file && r.playing, `music file ${n} did not play: ${JSON.stringify(r)}`);
+  console.log('music files', JSON.stringify(files));
+} catch (e) { fails.push('music file check: ' + e.message); }
+
 await browser.close();
 server.close();
+
 const all = [...errors, ...fails];
 if (all.length) {
   console.log('FAILED:\n' + all.join('\n'));
