@@ -74,6 +74,11 @@ export const App = {
     this.endSession();
     this.demoSeed = (this.demoSeed % 9) + 1;
     this.session = new Session(this, { kind: 'demo', seed: this.demoSeed });
+    // Fast-forward until the armies meet so the title opens mid-battle.
+    const b = this.session.battle;
+    b.setStance(0, 'charge');
+    b.setStance(1, 'charge');
+    for (let i = 0; i < 60 * 9 && !b.result; i++) { b.update(1 / 60); b.events.length = 0; }
     this.session.start();
   },
 

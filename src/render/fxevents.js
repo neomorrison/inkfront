@@ -49,16 +49,33 @@ export function installFxEvents(E) {
     }
     if (e.amount >= 22 && Math.random() < 0.4) r.fx.stain(e.x + dir * rnd(8, 26), e.z, pal.ink, rnd(2, 5), rnd(1, 2), 0.3);
     if (e.amount >= 50) r.shake(Math.min(5, e.amount / 30));
-    if (!r.settings.numbers || e.amount < 1) return;
+    if (!r.settings.numbers || e.amount < 1 || (b && b.mode === 'demo')) return;
     const mine = src && src.team === 0;
     const taken = e.team === 0 && e.target && e.target.isHero;
     if (!mine && !taken) return;
-    const amt = Math.round(e.amount);
     const crit = e.crit;
+    // Rapid hits on one target (Inkstorm ticks, volleys) add up in one number instead of stacking.
+    const nums = r._recentNums || (r._recentNums = new Map());
+    const key = e.target ? e.target.id : null;
+    const prev = key != null ? nums.get(key) : null;
+    if (prev && !crit && prev.t.life > prev.t.max * 0.45 && r.t - prev.at < 0.35) {
+      prev.sum += e.amount;
+      prev.t.str = String(Math.round(prev.sum));
+      prev.t.size = clamp(12 + prev.sum * 0.2, 13, 26);
+      prev.t.age = 0;
+      prev.at = r.t;
+      return;
+    }
+    const amt = Math.round(e.amount);
     const size = clamp(12 + amt * 0.2, 13, 26) * (crit ? 1.25 : 1);
-    r.fx.text(e.x + rnd(-9, 9), e.y - 14, String(amt) + (crit ? '!' : ''), taken ? '#d1342b' : crit ? '#ff5a1f' : INK_DARK, size, {
-      life: crit ? 0.95 : 0.7, vy: crit ? -85 : -62, vx: rnd(-14, 14), crit, outline: r.page.chalky ? '#102018' : '#fffdf4', pop: crit ? 0.24 : 0.16,
+    const chalk = r.page && r.page.chalky;
+    const t = r.fx.text(e.x + rnd(-9, 9), e.y - 14, String(amt) + (crit ? '!' : ''), taken ? '#d1342b' : crit ? '#ff5a1f' : chalk ? '#f4f1e6' : INK_DARK, size, {
+      life: crit ? 0.95 : 0.7, vy: crit ? -85 : -62, vx: rnd(-14, 14), crit, outline: chalk ? '#102018' : '#fffdf4', pop: crit ? 0.24 : 0.16,
     });
+    if (key != null && t) {
+      nums.set(key, { t, sum: e.amount, at: r.t });
+      if (nums.size > 200) nums.clear();
+    }
   };
 
   E.death = (r, e, b) => {

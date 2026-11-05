@@ -50,10 +50,13 @@ export function demoConfig(opts) {
   const set = DEMO_SETS[n];
   const enemyRoster = FACTIONS[set.b].roster.filter((id) => id !== 'scribe').slice(0, 5);
   const weights = (r) => Object.fromEntries(r.map((id, i) => [id, i === 0 ? 3 : 2]));
+  // Both armies start on the field so the title screen opens on a fight, not an empty page.
+  const army = (roster) => Object.fromEntries(roster.slice(0, 4).map((id, i) => [id, i === 0 ? 5 : 3]));
   const team = (faction, roster) => ({
-    faction, startInk: 300, income: 4, popCap: 24, scribeCap: 3, roster: ['scribe', ...roster],
+    faction, startInk: 300, income: 4, popCap: 30, scribeCap: 3, roster: ['scribe', ...roster],
     unitLevels: {}, fort: { hp: 2600, turretDmg: 8, turretRange: 420, turretCd: 2 },
-    ai: { scribes: 3, weights: weights(roster), aggression: 0.9, firstAttack: 8, maxArmy: 18 },
+    startUnits: army(roster),
+    ai: { scribes: 3, weights: weights(roster), aggression: 0.6, firstAttack: 0, maxArmy: 22 },
   });
   return {
     mode: 'demo', kind: 'demo', seed: opts.seed || 1, width: 2200, page: set.page, level: null, modifiers: [],

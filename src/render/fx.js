@@ -207,8 +207,10 @@ export class FX {
 
   // Big text pops. o: { life, vy, vx, crit, pop, outline, bold }
   text(x, y, str, col = '#1b2240', size = 18, o = {}) {
-    this.texts.push({ x, y, str, col, size, life: o.life ?? 1.0, max: o.life ?? 1.0, vy: o.vy ?? -50, vx: o.vx ?? 0, outline: o.outline ?? '#fff', bold: !!o.bold, age: 0, pop: o.pop ?? 0.18, crit: !!o.crit, tilt: o.tilt ?? (Math.random() - 0.5) * 0.18 });
+    const t = { x, y, str, col, size, life: o.life ?? 1.0, max: o.life ?? 1.0, vy: o.vy ?? -50, vx: o.vx ?? 0, outline: o.outline ?? '#fff', bold: !!o.bold, age: 0, pop: o.pop ?? 0.18, crit: !!o.crit, tilt: o.tilt ?? (Math.random() - 0.5) * 0.18 };
+    this.texts.push(t);
     if (this.texts.length > MAX_TEXTS) this.texts.shift();
+    return t;
   }
 
   // ---- ragdolls: built from a posed figure's world-space joints
