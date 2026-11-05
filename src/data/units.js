@@ -183,7 +183,7 @@ export const UNITS = {
     desc: 'Invisible until he strikes. Slips past the front line to cut down archers and healers.',
     cost: 250, pop: 2, build: 7, hp: 170, dmg: 62, range: 30, atkCd: 1.0, windup: 0.2, speed: 128,
     armor: 0, mass: 1, kb: 40, rank: 1, backstab: 2,
-    tags: ['melee', 'assassin'], traits: ['stealth'], look: { weapon: 'katana', style: 'slash', hat: 'headband' },
+    tags: ['melee', 'assassin'], traits: ['stealth'], look: { weapon: 'katana', style: 'slash', hat: 'headband', anim: 'ninja' },
     upgrade: { base: 200 },
     perks: {
       3: { id: 'smoke_bomb', name: 'Smoke Bomb', desc: 'Vanishes again after each kill.' },
@@ -198,6 +198,20 @@ export const UNITS = {
     desc: 'A small angry scribble.', cost: 0, pop: 0, build: 0, hp: 60, dmg: 8, range: 22, atkCd: 0.8, windup: 0.2,
     speed: 105, armor: 0, mass: 0.6, kb: 10, rank: 1, lifetime: 14,
     tags: ['melee', 'small', 'summon'], look: { body: 'critter', scale: 0.7, style: 'punch' },
+  },
+
+  // Structures (spawned by spells and bosses). behavior 'structure', drawn by BODIES[look.body].
+  sticky_wall: {
+    id: 'sticky_wall', name: 'Sticky Wall', faction: 'ink', role: 'structure', behavior: 'structure', summon: true,
+    desc: 'A stack of sticky notes. Enemies must chew through it.', cost: 0, pop: 0, build: 0, hp: 900, dmg: 0, range: 0,
+    atkCd: 99, windup: 0, speed: 0, armor: 0, mass: 999, kb: 0, rank: 0, radius: 24, height: 120, lifetime: 20,
+    tags: ['structure'], look: { body: 'sticky_wall' },
+  },
+  chalk_wall: {
+    id: 'chalk_wall', name: 'Detention Wall', faction: 'chalk', role: 'structure', behavior: 'structure', summon: true,
+    desc: 'A chalk-drawn wall. Break it to pass.', cost: 0, pop: 0, build: 0, hp: 1400, dmg: 0, range: 0,
+    atkCd: 99, windup: 0, speed: 0, armor: 0.1, mass: 999, kb: 0, rank: 0, radius: 26, height: 130, lifetime: 25,
+    tags: ['structure'], look: { body: 'chalk_wall' },
   },
 
   // ------------------------------------------------------------ Hero (one per team at most)
@@ -277,7 +291,7 @@ export const UNITS = {
     desc: 'Crumbles when beaten, then pulls itself back together once.',
     cost: 60, pop: 1, build: 2.4, hp: 120, dmg: 14, range: 30, atkCd: 1.0, windup: 0.3, speed: 76,
     armor: 0, mass: 1, kb: 20, rank: 1,
-    tags: ['melee'], traits: ['reassemble'], look: { weapon: 'chalk', style: 'slash' },
+    tags: ['melee'], traits: ['reassemble'], look: { weapon: 'chalk', style: 'slash', anim: 'dustborn' },
   },
   chalk_thrower: {
     id: 'chalk_thrower', name: 'Chalk Thrower', faction: 'chalk', role: 'ranged', behavior: 'ranged',

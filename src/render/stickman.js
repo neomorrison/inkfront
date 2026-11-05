@@ -34,8 +34,12 @@ export const ATTACKS = {
   bash: [[0, {}], [0.4, { uB: 1.0, lB: 0.6, uF: 2.6, lF: 0.6, lean: -0.08 }], [0.5, { uB: 1.5, lB: 0.1, uF: 1.4, lF: 0.2, lean: 0.3, tF: 0.45, sF: -0.3 }], [0.72, { uB: 1.35, lB: 0.25, uF: 1.1, lF: 0.3, lean: 0.15 }], [1, {}]],
 };
 
-// Extra animations other packages can add: ANIMS[name] = (u, t, base) -> pose angles
+// Extra animations other packages can add: ANIMS[name] = (u, t, base) -> pose angles,
+// or -> { pose, planted: false, lift } . Selected by look.anim.
 export const ANIMS = {};
+
+// Accessories listed in look.extras (cape, glasses, scarf...): EXTRAS_DRAW[name] = { back?(ctx, J, o), front?(ctx, J, o) }
+export const EXTRAS_DRAW = {};
 
 export function basePose(style) {
   return { ...IDLE, ...(HOLD[style] || HOLD.slash) };
@@ -195,6 +199,8 @@ export function drawStick(ctx, j, o) {
     ctx.stroke();
   }
 
+  const extras = (o.look && o.look.extras) || null;
+  if (extras && sk >= 1) for (const ex of extras) EXTRAS_DRAW[ex]?.back?.(ctx, J, o);
   // Back limbs.
   strokeSk(ctx, [J.hip, J.kB, J.fB], o.back, lw, sk, 0.0);
   strokeSk(ctx, [J.sh, J.eB, J.hB], o.back, lw, sk, 0.15);
@@ -209,6 +215,7 @@ export function drawStick(ctx, j, o) {
   // Front arm on top.
   strokeSk(ctx, [J.sh, J.eF, J.hF], o.col, lw, sk, 0.3);
   if (weapon && weapon.front && sk > 0.8) weapon.front(ctx, J, o);
+  if (extras && sk >= 1) for (const ex of extras) EXTRAS_DRAW[ex]?.front?.(ctx, J, o);
   ctx.restore();
 }
 
