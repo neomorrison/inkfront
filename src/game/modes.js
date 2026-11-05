@@ -3,7 +3,11 @@
 import { seedFromString } from '../core/rng.js';
 import { LEVEL_BY_ID } from '../data/levels.js';
 import { FACTIONS } from '../data/factions.js';
+import { UNITS } from '../data/units.js';
+import { CHAPTERS } from '../data/pages.js';
+import { roleWeights } from '../sim/ai.js';
 import { playerTeamConfig, enemyTeamConfig } from './teamcfg.js';
+import { REWARD_HOOKS } from './progression.js';
 
 // MODE_BUILDERS[kind] = (opts, profile) -> battle cfg
 export const MODE_BUILDERS = {};
@@ -56,3 +60,65 @@ export function demoConfig(opts) {
     teams: [team('ink', set.a), team(set.b, enemyRoster)],
   };
 }
+
+// ---------------------------------------------------------------- shared enemy generator (Daily, Skirmish)
+const mix = (a, b, p) => a + (b - a) * p;
+
+// A level.enemy-style block for any faction at a given power (0 = chapter 1 feel, 1 = chapter 5 feel).
+export function enemyBlock(faction, power, o = {}) {
+  const p = Math.max(0, Math.min(1, power));
+  const ids = ((FACTIONS[faction] && FACTIONS[faction].roster) || []).filter((id) => id !== 'scribe' && UNITS[id]);
+  const roster = ids.filter((id) => UNITS[id].role !== 'heavy' || p > 0.45);
+  const weights = roleWeights(roster);
+  const maxArmy = Math.round(mix(8, 32, p));
+  const e = {
+    fortHp: Math.round(mix(1500, 9000, p) / 50) * 50,
+    turret: { dmg: Math.round(mix(8, 30, p)), range: Math.round(mix(420, 550, p)), cd: +mix(1.9, 1.2, p).toFixed(2) },
+    startInk: Math.round(mix(100, 520, p)),
+    income: +mix(1.1, 5.0, p).toFixed(2),
+    scribes: Math.round(mix(2, 8, p)),
+    level: Math.max(1, Math.round(mix(1, 10, p))),
+    roster, weights,
+    aggression: +mix(1.4, 0.92, p).toFixed(2),
+    firstAttack: Math.round(mix(60, 38, p)),
+    maxArmy,
+  };
+  if (o.rush) {
+    const front = roster.filter((id) => UNITS[id].role === 'melee' || UNITS[id].role === 'tank').slice(0, 2);
+    e.startUnits = {};
+    front.forEach((id, i) => { e.startUnits[id] = Math.round(mix(3, 7, p)) - i; });
+    e.firstAttack = Math.min(e.firstAttack, 25);
+  }
+  return Object.assign(e, o.override || {});
+}
+
+// ---------------------------------------------------------------- Skirmish
+export const SKIRMISH = {
+  easy: { power: 0.14, gold: 40 },
+  normal: { power: 0.4, gold: 80 },
+  hard: { power: 0.66, gold: 130 },
+  brutal: { power: 0.9, gold: 200 },
+};
+export const SKIRMISH_FACTIONS = ['red', 'graphite', 'neon', 'chalk', 'eraser'];
+
+MODE_BUILDERS.skirmish = (opts, profile) => {
+  const faction = SKIRMISH_FACTIONS.includes(opts.faction) ? opts.faction : 'red';
+  const diff = SKIRMISH[opts.difficulty] ? opts.difficulty : 'normal';
+  const ch = CHAPTERS.find((c) => c.faction === faction);
+  const level = { id: 'skirmish', faction, enemy: enemyBlock(faction, SKIRMISH[diff].power), win: 'fort', script: [] };
+  const width = Math.max(2200, Math.min(4200, opts.width || 3000));
+  return {
+    mode: 'skirmish', kind: 'skirmish', seed: opts.seed ?? ((seedFromString(faction + diff) + (profile.stats?.battles || 0) * 31) >>> 0),
+    width, page: ch.page, level: null, difficulty: diff, modifiers: [],
+    teams: [playerTeamConfig(profile), enemyTeamConfig(level, {})],
+  };
+};
+
+REWARD_HOOKS.push((p, session, summary) => {
+  if (session.opts.kind !== 'skirmish') return;
+  const diff = SKIRMISH[session.opts.difficulty] ? session.opts.difficulty : 'normal';
+  const win = session.battle.result.winner === 0;
+  summary.gold = win ? SKIRMISH[diff].gold : 8;
+  summary.xp = win ? Math.round(SKIRMISH[diff].gold * 0.4) : 0;
+  summary.difficulty = diff;
+});

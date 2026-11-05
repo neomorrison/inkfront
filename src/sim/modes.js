@@ -1,6 +1,7 @@
 // Battle modes: win/lose rules and per-mode updates.
 // OWNER: AI/levels/modes builder (package C) adds 'endless', 'daily', 'skirmish' and refines these.
 import { MODE_IMPL } from './registry.js';
+import { initEndless, updateEndless } from './endless_core.js';
 
 function campaignCheck(b) {
   const lv = b.level;
@@ -21,3 +22,16 @@ MODE_IMPL.demo = {
     return null;
   },
 };
+
+// ---------------------------------------------------------------- Endless, Daily, Skirmish
+
+// Endless: the only way to lose is to lose your fort. Waves come from the right (endless_core.js).
+MODE_IMPL.endless = {
+  init(b) { initEndless(b); },
+  update(b, dt) { updateEndless(b, dt); },
+  check(b) { return b.teams[0].fort.alive ? null : { winner: 1, reason: 'fort' }; },
+};
+
+// Daily and Skirmish are ordinary fort battles with their own configs (src/game/daily.js, modes.js).
+MODE_IMPL.daily = { check: campaignCheck };
+MODE_IMPL.skirmish = { check: campaignCheck };

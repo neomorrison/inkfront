@@ -19,6 +19,56 @@ export const MODIFIERS = {
   coffee_stains: { name: 'Coffee Stains', desc: 'Sticky stains on the ground slow everyone who walks through.' },
 };
 
+// ---------------------------------------------------------------------------------------------
+// BALANCE KNOBS. The level definitions below hold each level's identity (roster, weights, modifiers,
+// script). Difficulty is tuned HERE and applied at load, so re-balancing after other packages land
+// means re-running:   node tools/tune.mjs --write     (then check:  node tools/sim.mjs all --runs 5 --report)
+//   level      added to enemy unit upgrade level (can be negative)
+//   income, fortHp, startInk, army (maxArmy), turret (tower dmg)   multipliers
+//   aggression added (lower = attacks sooner); firstAttack seconds added; bossAt seconds added
+//   bossHp, bossDmg  multipliers on the level's boss (written into enemy.mods.byUnit)
+// Scopes combine in this order: all, chapter (1-5), single level id, auto (written by the tuner).
+export const TUNE = {
+  all: { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1 },
+  chapter: {}, // e.g. { 3: { level: -1 } }
+  level: {}, // hand overrides, same keys as `all`
+  // Written by `node tools/tune.mjs --write`: one dial per level found by bisection against the bot.
+  auto: {
+    // AUTOTUNE:BEGIN
+    '1-1': {income: 1, startInk: 1, army: 1, fortHp: 1, turret: 1, level: 0},
+    '1-2': {income: 1.145, startInk: 1.099, army: 1.114, fortHp: 1.077, turret: 1.049, level: 0},
+    '1-3': {income: 1.289, startInk: 1.195, army: 1.225, fortHp: 1.15, turret: 1.093, level: 1},
+    '1-4': {income: 1.385, startInk: 1.256, army: 1.298, fortHp: 1.196, turret: 1.121, level: 1},
+    '1-5': {income: 1.481, startInk: 1.316, army: 1.369, fortHp: 1.241, turret: 1.147, level: 1},
+    '1-6': {income: 1.433, startInk: 1.287, army: 1.334, fortHp: 1.219, turret: 1.134, level: 1, bossHp: 1.241, bossDmg: 1.155},
+    '2-1': {income: 1.767, startInk: 1.49, army: 1.577, fortHp: 1.368, turret: 1.221, level: 1},
+    '2-2': {income: 1.767, startInk: 1.49, army: 1.577, fortHp: 1.368, turret: 1.221, level: 1},
+    '2-3': {income: 1.767, startInk: 1.49, army: 1.577, fortHp: 1.368, turret: 1.221, level: 1},
+    '2-4': {income: 1.672, startInk: 1.433, army: 1.509, fortHp: 1.327, turret: 1.197, level: 1},
+    '2-5': {income: 0.47, startInk: 0.59, army: 0.547, fortHp: 0.66, turret: 0.768, level: -2},
+    '2-6': {income: 0.425, startInk: 0.55, army: 0.505, fortHp: 0.625, turret: 0.741, level: -2, bossHp: 0.599, bossDmg: 0.71},
+    '3-1': {income: 1.674, startInk: 1.434, army: 1.51, fortHp: 1.328, turret: 1.198, level: 1},
+    '3-2': {income: 1.154, startInk: 1.105, army: 1.121, fortHp: 1.082, turret: 1.051, level: 0},
+    '3-3': {income: 1.029, startInk: 1.02, army: 1.023, fortHp: 1.016, turret: 1.01, level: 0},
+    '3-4': {income: 1.581, startInk: 1.378, army: 1.443, fortHp: 1.287, turret: 1.174, level: 1},
+    '3-5': {income: 1.988, startInk: 1.618, army: 1.733, fortHp: 1.459, turret: 1.272, level: 1},
+    '3-6': {income: 0.904, startInk: 0.932, army: 0.923, fortHp: 0.946, turret: 0.965, level: 0, bossHp: 0.941, bossDmg: 0.961},
+    '4-1': {income: 2.294, startInk: 1.788, army: 1.943, fortHp: 1.579, turret: 1.337, level: 2},
+    '4-2': {income: 0.74, startInk: 0.81, army: 0.786, fortHp: 0.847, turret: 0.9, level: -1},
+    '4-3': {income: 0.818, startInk: 0.869, army: 0.851, fortHp: 0.895, turret: 0.932, level: 0},
+    '4-4': {income: 0.605, startInk: 0.703, army: 0.669, fortHp: 0.758, turret: 0.839, level: -1},
+    '4-5': {income: 0.778, startInk: 0.839, army: 0.818, fortHp: 0.871, turret: 0.916, level: -1},
+    '4-6': {income: 0.669, startInk: 0.755, army: 0.725, fortHp: 0.801, turret: 0.869, level: -1, bossHp: 0.786, bossDmg: 0.851},
+    '5-1': {income: 0.447, startInk: 0.569, army: 0.525, fortHp: 0.642, turret: 0.755, level: -2},
+    '5-2': {income: 0.21, startInk: 0.336, army: 0.287, fortHp: 0.424, turret: 0.579, level: -3},
+    '5-3': {income: 1, startInk: 1, army: 1, fortHp: 1, turret: 1, level: 0},
+    '5-4': {income: 0.86, startInk: 0.9, army: 0.886, fortHp: 0.92, turret: 0.949, level: 0},
+    '5-5': {income: 0.495, startInk: 0.611, army: 0.569, fortHp: 0.679, turret: 0.782, level: -1},
+    '5-6': {income: 0.447, startInk: 0.569, army: 0.525, fortHp: 0.642, turret: 0.755, level: -2, bossHp: 0.617, bossDmg: 0.725},
+    // AUTOTUNE:END
+  },
+};
+
 export const HARD_MODE = { enemyHp: 1.6, enemyDmg: 1.35, enemyIncome: 1.45, fortHp: 1.5, levelBonus: 2, gold: 1.8 };
 
 const L = (o) => o;
@@ -194,6 +244,34 @@ export const LEVELS = [
       bossAt: 20, invulnerableFort: true },
     win: 'boss', rewards: { gold: 1200, xp: 500, unlock: { hat: 'crown', mode: 'hard' } } }),
 ];
+
+const BASE_ENEMY = LEVELS.map((l) => JSON.parse(JSON.stringify(l.enemy)));
+
+// Re-derive every level's enemy block from its untuned base and the current TUNE (tools/tune.mjs calls this).
+export function retune() {
+  LEVELS.forEach((L, i) => {
+    const e = (L.enemy = JSON.parse(JSON.stringify(BASE_ENEMY[i])));
+    const t = { level: 0, income: 1, fortHp: 1, startInk: 1, army: 1, turret: 1, aggression: 0, firstAttack: 0, bossAt: 0, bossHp: 1, bossDmg: 1 };
+    for (const src of [TUNE.all, TUNE.chapter[L.chapter], TUNE.level[L.id], TUNE.auto[L.id]]) {
+      if (!src) continue;
+      for (const k in src) t[k] = ['level', 'aggression', 'firstAttack', 'bossAt'].includes(k) ? t[k] + src[k] : t[k] * src[k];
+    }
+    e.level = Math.max(1, Math.round((e.level || 1) + t.level));
+    e.income = +((e.income ?? 1.5) * t.income).toFixed(3);
+    e.fortHp = Math.round((e.fortHp ?? 1500) * t.fortHp);
+    e.startInk = Math.round((e.startInk ?? 150) * t.startInk);
+    e.maxArmy = Math.max(3, Math.round((e.maxArmy ?? 20) * t.army));
+    if (e.turret) e.turret = { ...e.turret, dmg: Math.round(e.turret.dmg * t.turret) };
+    e.aggression = +((e.aggression ?? 1.2) + t.aggression).toFixed(2);
+    e.firstAttack = Math.max(5, Math.round((e.firstAttack ?? 45) + t.firstAttack));
+    if (e.bossAt != null) e.bossAt = Math.max(5, e.bossAt + t.bossAt);
+    if (L.boss && (t.bossHp !== 1 || t.bossDmg !== 1)) {
+      e.mods = { ...(e.mods || {}), byUnit: { ...((e.mods && e.mods.byUnit) || {}), [L.boss]: { hp: t.bossHp, dmg: t.bossDmg } } };
+    }
+  });
+  return LEVELS;
+}
+retune();
 
 export const LEVEL_BY_ID = Object.fromEntries(LEVELS.map((l) => [l.id, l]));
 
