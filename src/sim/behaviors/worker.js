@@ -35,6 +35,12 @@ BEHAVIORS.worker = {
   update(u, b, dt) {
     const d = u.data;
     const team = b.teams[u.team];
+    // Ink Tap perk: a steady trickle from every living Scribe that has it.
+    if (u.perks.has('ink_tap') && !b.result) {
+      const add = 0.3 * dt;
+      team.ink += add;
+      team.stats.inkGathered += add;
+    }
     d.dangerT -= dt;
     if (d.dangerT <= 0) {
       d.dangerT = 0.3;
