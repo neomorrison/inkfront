@@ -3,11 +3,13 @@
 import { SPELL_IMPL } from '../registry.js';
 import { spellValue } from '../../data/spells.js';
 import { Projectile } from '../projectile.js';
+import { spellFx } from './util.js';
 
 SPELL_IMPL.pencil_rain = {
   cast(b, team, x, level, def) {
     const n = spellValue('pencil_rain', 'count', level);
     const dmg = spellValue('pencil_rain', 'dmg', level);
+    spellFx(b, 'pencil_rain', 'cast', x, team, { radius: def.radius });
     b.areas.push({
       kind: 'pencil_rain', team, x, radius: def.radius, t: 0, dur: 1.3, n, spawned: 0, alive: true,
       update(b, dt) {
@@ -22,7 +24,8 @@ SPELL_IMPL.pencil_rain = {
             team: this.team, dmg, kind: 'pencil', dmgKind: 'pierce', aoe: 26, kb: 30, z: b.rng.range(-1, 1),
           }));
         }
-        if (this.t >= this.dur) this.alive = false;
+        if (!this.hit && this.t >= 0.55) { this.hit = true; spellFx(b, 'pencil_rain', 'impact', this.x, this.team, { radius: this.radius }); }
+        if (this.t >= this.dur) { spellFx(b, 'pencil_rain', 'end', this.x, this.team, { radius: this.radius }); this.alive = false; }
       },
     });
     return true;
