@@ -8,6 +8,8 @@ import { BODIES, MOUNTS, makePalette } from './renderer.js';
 import { HAT_DRAW } from './hats.js';
 
 export const ICON_DRAW = {};
+// ICON_FALLBACK.spell / .ability(ctx, size, name): drawn when another package has not supplied that icon.
+export const ICON_FALLBACK = {};
 const cache = new Map();
 
 function canvas(size) {
@@ -86,7 +88,9 @@ export function icon(name, size = 64) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const fn = ICON_DRAW[name];
+  const fb = !fn && (name.startsWith('spell_') ? ICON_FALLBACK.spell : name.startsWith('ability_') ? ICON_FALLBACK.ability : null);
   if (fn) fn(ctx, size);
+  else if (fb) fb(ctx, size, name);
   else {
     ctx.fillStyle = '#ffe56b';
     ctx.strokeStyle = '#1b2240';
