@@ -103,6 +103,8 @@ async function stage(levelId, opts = {}) {
     window.__follow = (dx = -250) => { s.cam.centerOn(b.boss.x + dx); };
   }, { levelId, opts });
   await page.waitForTimeout(150);
+  await page.getByText("Let's go").click({ timeout: 800 }).catch(() => {}); // dismiss the tutorial card if shown
+  await page.waitForTimeout(100);
 }
 
 const adv = (sec) => page.evaluate((s) => window.__adv(s), sec);
@@ -138,6 +140,12 @@ async function wyrm() {
   await until('telegraph:land', 40); await adv(0.7); await snap('wyrm-5-land-telegraph');
   await until('bossSlam:land', 5); await adv(0.35); await snap('wyrm-6-stomp');
   await adv(1.8); await snap('wyrm-7-ground');
+  await call('window.__heal()'); await until('telegraph:stomp', 20); await adv(0.5); await snap('wyrm-7b-stomp-telegraph');
+  await until('bossSlam:stomp', 5); await adv(0.2); await snap('wyrm-7c-stomp');
+  // altitude cap: the Wyrm must never rise above ~140 px (wings and the boss bar stay clear)
+  const minY = await page.evaluate(() => { let m = 0; const bs = App.session.battle.boss; for (let i = 0; i < 60 * 25; i++) { window.__adv(1 / 60); m = Math.min(m, bs.y); window.__heal(); } return m; });
+  console.log('wyrm min y (altitude)', Math.round(minY));
+  if (minY < -141) errors.push('wyrm flew above 140 px: ' + minY);
   await call('App.session.battle.boss.data.mouthT = 1'); await adv(0.6); await snap('wyrm-8-mouth');
 }
 

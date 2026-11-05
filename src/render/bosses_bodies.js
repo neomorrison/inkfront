@@ -57,7 +57,7 @@ BODIES.wyrm = (ctx, u, o, r) => {
   const s = o.s;
   const d = u.data;
   const t = o.t;
-  const k = 1 - clamp((d.alt || 0) / 190, 0, 1); // 1 = on the ground
+  const k = 1 - clamp((d.alt || 0) / 125, 0, 1); // 1 = on the ground
   const mouth = d.mouth || 0;
   const flash = u.anim.flash > 0;
   const c = ink(o, flash);

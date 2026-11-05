@@ -2,6 +2,7 @@
 // Shared pieces for the five boss behaviors: setup, telegraph areas, ground hit helpers and the
 // basic "walk up and hit it" loop. Bosses run ability sequences as `u.data.act`, an object with
 // tick(u, b, dt) -> true when finished. While an act runs the normal melee loop is paused.
+import { clamp } from '../../core/util.js';
 import { pickTarget, validTarget, gap, moveToward, beginAttack, updateAttack, meleeHit, face } from '../common.js';
 
 export function initBoss(u, b, o = {}) {
@@ -11,6 +12,7 @@ export function initBoss(u, b, o = {}) {
   u.data.free = true; // bosses never hold a leash
   u.data.cd = { ...(o.cd || {}) };
   u.data.act = null;
+  u.data.born = b.time;
   u.data.escalated = false;
   u.z = o.z ?? 0.2;
   b.emit('bossIntro', { unit: u, id: u.type, x: u.x });
@@ -119,7 +121,8 @@ export function hitGround(b, boss, x, radius, dmg, info = {}) {
 
 // Bosses lead the push but never run far ahead of their own army: x they should not pass while
 // marching on the enemy (null when the army is gone, then the boss goes alone).
-export function marchLimit(b, boss, lead = 140) {
+// The lead grows the longer the boss has been out, so a stalled push still ends at the player's gate.
+export function marchLimit(b, boss, lead = 140 + clamp((b.time - (boss.data.born ?? b.time) - 40) * 6, 0, 260)) {
   let front = null;
   for (const a of b.byTeam[boss.team]) {
     if (!a.alive || a === boss || a.type === 'scribe' || a.tags.has('structure') || a.def.summon) continue;
@@ -156,6 +159,20 @@ export function bossMelee(u, b, dt, o = {}) {
   const lim = marchLimit(b, u);
   if (lim !== null && (goal - lim) * u.dir > 0) goal = lim;
   if ((goal - u.x) * u.dir > 0) moveToward(u, b, goal, dt); // never walk backwards toward the army
+}
+
+// The player's fort, as an attack focus: { x, fort, near } where near = within `reach` of the boss.
+export function fortFocus(b, boss, reach = 700) {
+  const f = b.teams[1 - boss.team].fort;
+  if (!f.alive) return null;
+  return { x: f.x, fort: f, near: Math.abs(f.x - boss.x) - f.radius <= reach };
+}
+
+// Hurt the enemy fort if x +- radius touches it. Returns damage dealt.
+export function hitFortAt(b, boss, x, radius, dmg, kind = 'blast') {
+  const f = b.teams[1 - boss.team].fort;
+  if (!f.alive || Math.abs(f.x - x) - f.radius > radius) return 0;
+  return b.damageFort(f, dmg, { source: boss, kind });
 }
 
 // Remove this boss's lingering hazards (called when it dies).
