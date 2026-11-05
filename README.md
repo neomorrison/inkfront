@@ -6,6 +6,12 @@ Draw an army in blue ink, lead it with your Captain, throw school supplies at th
 
 **Play it here: https://neomorrison.github.io/inkfront/**
 
+![Inkfront title screen](assets/preview.jpg)
+
+| | |
+|---|---|
+| ![A battle on ruled paper](assets/shot-battle.jpg) | ![The Hand, the final boss](assets/shot-boss.jpg) |
+
 ## What's in it
 - **30 campaign levels** across five pages (ruled paper, graph paper, a sketchbook, a chalkboard and the last page), each with its own enemy army and a boss at the end.
 - **13 units** to draw: Scribes, Brawlers, Slingers, Shieldbearers, Spearmen, Archers, Bombers, Medics, Riders, Doodlers, Catapults, the Colossus and the Ninja.
