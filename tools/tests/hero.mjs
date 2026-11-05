@@ -3,7 +3,7 @@
 import { Battle } from '../../src/sim/index.js';
 import { campaignConfig } from '../../src/game/modes.js';
 import { defaultProfile } from '../../src/game/save.js';
-import { HERO_ABILITIES, HERO_SKILLS, HERO_SKILL_BY_ID } from '../../src/data/hero.js';
+import { HERO_ABILITIES, HERO_SKILLS, HERO_SKILL_BY_ID, HERO_FURY } from '../../src/data/hero.js';
 import { HATS } from '../../src/data/hats.js';
 
 let fails = 0;
@@ -181,12 +181,14 @@ console.log('Fury and Inkstorm');
 {
   const { b, h } = arena();
   const e = dummy(b, h.x + 30);
-  ok(h.data.fury === 0, 'fury starts empty');
+  ok(h.data.fury === (HERO_FURY.start || 0), 'fury starts at its configured value');
+  const fury0 = h.data.fury;
   b.control[0].heroMove = 1; run(b, 0.05); b.control[0].heroMove = 0;
   const dealtBefore = b.teams[0].stats.dmgDealt;
   run(b, 3);
   const dealt = b.teams[0].stats.dmgDealt - dealtBefore;
-  ok(dealt > 50 && near(h.data.fury, dealt / 6 / (1 + 0.06 * 29), 0.8), 'fury grows 1 per 6 damage dealt (in level-1 numbers)', { fury: h.data.fury, expect: dealt / 6 / (1 + 0.06 * 29) });
+  const expectFury = Math.min(HERO_FURY.max, fury0 + dealt * HERO_FURY.perDealt / (1 + 0.06 * 29));
+  ok(dealt > 50 && near(h.data.fury, expectFury, 0.8), 'fury grows per damage dealt (in level-1 numbers)', { fury: h.data.fury, expect: expectFury });
   // Not full: inkstorm refuses.
   h.data.fury = 60;
   b.control[0].heroAbility = 'inkstorm';
@@ -196,7 +198,7 @@ console.log('Fury and Inkstorm');
   const f0 = h.data.fury;
   h.hp -= 100;
   run(b, 0.1);
-  ok(near(h.data.fury - f0, 100 / 10 / (1 + 0.07 * 29), 1), 'fury grows 1 per 10 damage taken (in level-1 numbers)', h.data.fury - f0);
+  ok(near(h.data.fury - f0, 100 * HERO_FURY.perTaken / (1 + 0.07 * 29), 1), 'fury grows per damage taken (in level-1 numbers)', h.data.fury - f0);
   h.data.fury = 100;
   const crowd = [dummy(b, h.x + 50), dummy(b, h.x - 60), dummy(b, h.x + 120)];
   const far = dummy(b, h.x + 400);
@@ -308,7 +310,7 @@ const mk = (skills) => arena(profile(30, skills)).b;
     dummy(A.b, A.h.x + 30);
     A.b.control[0].heroMove = 1; run(A.b, 0.05); A.b.control[0].heroMove = 0;
     run(A.b, 3);
-    return A.h.data.fury / A.b.teams[0].stats.dmgDealt;
+    return (A.h.data.fury - (HERO_FURY.start || 0)) / A.b.teams[0].stats.dmgDealt;
   };
   const r0 = rate({}), r2 = rate(maxed('whirlwind'));
   ok(near(r2 / r0, 1.5, 0.05), 'Whirlwind: fury fills 50% faster per damage dealt', r2 / r0);

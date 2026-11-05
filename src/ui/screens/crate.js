@@ -42,9 +42,7 @@ UI.register('crate', {
             h('div.reward-name.marker', null, hat.name),
             h('div.reward-tag', null, 'New hat!')));
         actions.append(
-          button('Equip it', () => { equipHat(p, r.id); close(); }, 'green'),
-          again(),
-          button('Keep', () => close(), 'white'));
+          ...[button('Equip it', () => { equipHat(p, r.id); close(); }, 'green'), again(), button('Keep', () => close(), 'white')].filter(Boolean));
       } else {
         reveal.append(
           h('div.reward-card.card.plain', null,
@@ -52,7 +50,7 @@ UI.register('crate', {
             h('img.reward-img', { src: icon('gold', 192), alt: '' }),
             h('div.reward-name.marker', null, '+' + r.amount + ' gold'),
             h('div.reward-tag', null, 'You own every crate hat!')));
-        actions.append(again(), button('Nice!', () => close(), 'green'));
+        actions.append(...[again(), button('Nice!', () => close(), 'green')].filter(Boolean));
       }
       Audio.play('unlock');
     }

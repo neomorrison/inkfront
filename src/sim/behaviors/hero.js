@@ -123,7 +123,7 @@ BEHAVIORS.hero = {
   init(u) {
     const d = u.data;
     d.cds = {};
-    d.fury = 0;
+    d.fury = HERO_FURY.start || 0;
     d.ctlIdle = 99;
     d.controlled = false;
     d.free = false;

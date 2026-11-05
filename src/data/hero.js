@@ -31,7 +31,8 @@ export const HERO_ABILITIES = {
 
 // Basic combat feel: a 3-hit combo (the third swing is heavy), Fury meter, Inspire aura.
 export const HERO_COMBO = { window: 1.3, heavyMult: 1.7, heavyRadius: 80, heavyKb: 2.4, heavyWindup: 1.45, steerAttackSpeed: 0.4 };
-export const HERO_FURY = { max: 100, perDealt: 1 / 6, perTaken: 1 / 10 };
+// Playtests: Inkstorm almost never came up in a normal fight, so Fury fills faster and starts a quarter full.
+export const HERO_FURY = { max: 100, perDealt: 1 / 3.5, perTaken: 1 / 6, start: 25 };
 export const HERO_INSPIRE = { radius: 260, interval: 0.5, perRank: 0.05 };
 
 // Skill tree. Each level-up grants one point. req = minimum hero level.

@@ -57,6 +57,8 @@ export class Session {
   }
 
   start() {
+    // Keys pressed on menus must not fire battle hotkeys (Esc, 1-9, W, T...).
+    Input.clearPresses();
     if (!this.isDemo) {
       this.speed = (this.profile.settings && this.profile.settings.speed) || 1;
       this.app.loop.timeScale = this.speed;
@@ -171,7 +173,7 @@ export class Session {
   surrender() {
     if (this.ended) return;
     this.app.loop.paused = false;
-    this.paused = false;
+    if (this.paused) { this.paused = false; bus.emit('pause', false); }
     UI.closeModal('pause');
     this.battle.teams[0].fort.hp = 0;
     this.battle.teams[0].fort.alive = false;
@@ -366,6 +368,7 @@ export class Session {
 
   destroy() {
     this.listeners.length = 0;
+    if (this.paused) { this.paused = false; bus.emit('pause', false); }
     this.app.loop.paused = false;
     this.app.loop.timeScale = 1;
   }

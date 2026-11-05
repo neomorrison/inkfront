@@ -291,8 +291,10 @@ export function applyBattleResult(p, session) {
       }
       if (summary.crates) awardCrates(p, summary.crates);
     } else {
-      summary.gold = Math.round(lv.rewards.gold * 0.2 * Math.min(1, r.time / 120) * goldMult);
-      summary.xp = Math.round(lv.rewards.xp * 0.3);
+      // A loss still pays a little so progress never stalls, but only for a real attempt.
+      const effort = r.time < 20 ? 0 : Math.min(1, r.time / 120);
+      summary.gold = Math.round(lv.rewards.gold * 0.2 * effort * goldMult);
+      summary.xp = Math.round(lv.rewards.xp * 0.3 * effort);
     }
   }
   if (session.opts.kind === 'endless') {

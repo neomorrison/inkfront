@@ -27,24 +27,37 @@ export function unitIcon(id, opts = {}) {
   const def = UNITS[id];
   const c = canvas(size);
   const ctx = c.getContext('2d');
-  const pal = makePalette((FACTIONS[opts.faction || def.faction] || FACTIONS.ink).palette, PAGES.ruled);
+  const fid = opts.faction || def.faction;
+  // Chalk is white ink: on a white card it needs the chalkboard's green instead.
+  const basePal = fid === 'chalk' ? { ink: '#2e5a46', dark: '#1b3328', light: '#cfe0d4', under: null } : (FACTIONS[fid] || FACTIONS.ink).palette;
+  const pal = makePalette(basePal, PAGES.ruled);
   const look = def.look || {};
   const fake = {
     id: 1, type: id, def, team: 0, level: opts.level || 1, scale: 1, facing: 1, z: 0, x: 0, y: 0,
-    anim: { t: 0.4, walk: 0, atk: 0, style: look.style || 'slash', moving: false, flash: 0, cheer: 0 },
+    // Overhead "slam" carry makes giants too tall for a card; portraits hold the weapon forward.
+    anim: { t: 0.4, walk: 0, atk: 0, style: look.style === 'slam' ? 'thrust' : look.style || 'slash', moving: false, flash: 0, cheer: 0 },
     attacking: false, state: 'idle', data: {}, mod: {}, perks: new Set(), tags: new Set(def.tags || []), alive: true,
   };
+  // Giants fill the card and read as bigger and bulkier than regular units.
   const big = (look.scale || 1) > 1.5;
-  const fit = big ? 0.62 : 1;
+  const fit = big ? 1.12 : 1;
   const s = (size / 100) * fit * (look.mount ? 0.8 : 1) * (look.scale && look.scale < 1 ? 1.2 : 1);
   const o = {
     x: size * 0.5, y: size * 0.9, s, facing: 1, col: pal.ink, back: pal.back, paper: '#ffffff', light: pal.light, dark: pal.dark,
-    under: pal.under, lw: 2.6 * (look.bulk || 1), seed: 7, frame: 0, t: 0.4, eyes: 'dot', look, unit: fake,
-    hat: opts.hat || look.hat || null, inkDrop: pal.dark, pal,
+    under: pal.under, lw: 2.6 * (look.bulk || 1) * (big ? 1.35 : 1), seed: 7, frame: 0, t: 0.4, eyes: 'dot', look, unit: fake,
+    // Upgrade gear shows on the portrait too, so upgrading visibly changes the card.
+    hat: opts.hat || look.hat || ((opts.level || 1) >= 7 ? 'gear_plume' : (opts.level || 1) >= 4 ? 'gear_helm' : null),
+    gilded: (opts.level || 1) >= 10, inkDrop: pal.dark, pal,
   };
   const body = look.body && BODIES[look.body];
-  if (body) body(ctx, fake, o, null);
-  else {
+  if (body) {
+    // Huge boss bodies are drawn smaller so they fit the portrait.
+    const shrink = BODY_ICON_SCALE[look.body];
+    if (shrink) { o.s = (size / 100) * shrink; o.y = size * (BODY_ICON_Y[look.body] ?? 0.9); }
+    // Bodies may read a renderer for the ground line; give them a minimal stand-in.
+    const stub = { cam: { zoom: o.s, x: 0, w: size, h: size, sx: () => o.x, sy: () => o.y, visible: () => true }, t: 0.4, settings: {}, pal: [pal, pal] };
+    try { body(ctx, fake, o, stub); } catch (e) { drawFallbackPortrait(ctx, size, pal); }
+  } else {
     const pose = computePose(fake, 0.4);
     const mount = look.mount && MOUNTS[look.mount];
     if (mount) { mount.draw(ctx, fake, o, null); o.y -= (mount.seat || 26) * s; }
@@ -53,6 +66,26 @@ export function unitIcon(id, opts = {}) {
   const url = c.toDataURL();
   cache.set(key, url);
   return url;
+}
+
+const BODY_ICON_SCALE = { wyrm: 0.3, hand: 0.42 };
+const BODY_ICON_Y = { wyrm: 0.78, hand: 1.02 };
+
+function drawFallbackPortrait(ctx, size, pal) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = pal.light;
+  ctx.strokeStyle = pal.ink;
+  ctx.lineWidth = size / 18;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = pal.ink;
+  ctx.font = `${Math.round(size * 0.4)}px 'Permanent Marker', cursive`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('!', size / 2, size / 2);
 }
 
 export function hatIcon(id, size = 96) {

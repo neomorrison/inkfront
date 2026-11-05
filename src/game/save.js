@@ -41,15 +41,36 @@ export function defaultProfile() {
   };
 }
 
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// Repair a parsed save: any section that is missing or the wrong type falls back to its default,
+// so a damaged or very old save never stops the game from booting.
 function migrate(p) {
   const d = defaultProfile();
-  // Fill any missing keys from defaults (shallow per section) so old saves keep working.
+  if (!isObj(p)) return d;
   for (const k in d) {
-    if (p[k] === undefined) p[k] = deepClone(d[k]);
-    else if (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) {
-      for (const kk in d[k]) if (p[k][kk] === undefined) p[k][kk] = deepClone(d[k][kk]);
+    const want = d[k];
+    const have = p[k];
+    if (Array.isArray(want)) { if (!Array.isArray(have)) p[k] = deepClone(want); continue; }
+    if (isObj(want)) {
+      if (!isObj(have)) { p[k] = deepClone(want); continue; }
+      for (const kk in want) {
+        const w = want[kk], h = have[kk];
+        if (h === undefined || h === null || (typeof w !== 'object' && typeof h !== typeof w) || (Array.isArray(w) && !Array.isArray(h)) || (isObj(w) && !isObj(h))) have[kk] = deepClone(w);
+      }
+      continue;
     }
+    if (typeof have !== typeof want) p[k] = deepClone(want);
   }
+  for (const id in p.levels) {
+    const r = p.levels[id];
+    if (!isObj(r)) { delete p.levels[id]; continue; }
+    r.stars = r.stars | 0; r.hardStars = r.hardStars | 0;
+    r.cleared = !!r.cleared; r.hardCleared = !!r.hardCleared; r.plays = r.plays | 0;
+  }
+  for (const id in p.units) if (typeof p.units[id] !== 'number') p.units[id] = 1;
+  if (!p.unlockedUnits.includes('scribe')) p.unlockedUnits.unshift('scribe');
+  if (!p.unlockedUnits.includes('brawler')) p.unlockedUnits.push('brawler');
   p.version = VERSION;
   return p;
 }
@@ -63,7 +84,13 @@ export const Save = {
     if (raw) {
       try { p = JSON.parse(raw); } catch (e) { p = null; }
     }
-    this.data = p ? migrate(p) : defaultProfile();
+    try {
+      this.data = p ? migrate(p) : defaultProfile();
+    } catch (e) {
+      // Keep the broken save aside instead of losing it, then start fresh.
+      try { localStorage.setItem(KEY + '.broken', raw); } catch (err) { /* ignore */ }
+      this.data = defaultProfile();
+    }
     return this.data;
   },
   save() {

@@ -75,6 +75,7 @@ export class Battle {
       index, dir, cfg: c,
       faction: c.faction || (index === 0 ? 'ink' : 'red'),
       ink: c.startInk ?? 200,
+      inkCap: c.inkCap ?? 3000,
       income: c.income ?? 2.5,
       popCap: c.popCap ?? 20,
       scribeCap: c.scribeCap ?? 4,
@@ -495,7 +496,10 @@ export class Battle {
       return;
     }
     this.index();
-    for (const t of this.teams) this.updateTeam(t, dt);
+    for (const t of this.teams) {
+      this.updateTeam(t, dt);
+      if (t.ink > t.inkCap) t.ink = t.inkCap;
+    }
     for (const id of this.modifiers) MODIFIER_IMPL[id]?.update?.(this, dt);
     this.modeImpl?.update?.(this, dt);
     for (const t of this.teams) if (t.ai) t.ai.update(dt);

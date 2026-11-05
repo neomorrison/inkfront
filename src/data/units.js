@@ -365,7 +365,7 @@ export const UNITS = {
   boss_wyrm: {
     id: 'boss_wyrm', name: 'The Neon Wyrm', faction: 'neon', role: 'boss', behavior: 'boss_wyrm', boss: true,
     desc: 'A highlighter dragon. Only arrows and spells reach it in the air; it lands to stomp.',
-    cost: 0, pop: 0, build: 0, hp: 6500, dmg: 70, range: 110, atkCd: 2.4, windup: 0.7, speed: 90,
+    cost: 0, pop: 0, build: 0, hp: 5200, dmg: 70, range: 110, atkCd: 2.4, windup: 0.7, speed: 90,
     armor: 0.1, mass: 30, kb: 260, rank: 0,
     tags: ['boss', 'large', 'flying'], look: { body: 'wyrm', scale: 1 },
   },
