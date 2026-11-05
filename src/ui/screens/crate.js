@@ -64,11 +64,13 @@ UI.register('crate', {
       box.classList.remove('shaking', 'popped');
       title.textContent = 'Supply Crate';
       stage.classList.remove('done');
+      el.classList.remove('revealed');
       render();
     }
     function close() {
       UI.closeModal('crate');
-      if (UI.current && UI.current.name === 'title') UI.show('title');
+      // Redraw the screen underneath so its crate chip / meter matches what is left.
+      if (UI.current && (UI.current.name === 'title' || UI.current.name === 'map')) UI.show(UI.current.name);
     }
     function open() {
       if (opened || left() <= 0) return;
@@ -83,12 +85,13 @@ UI.register('crate', {
         sparks(box, 18);
         Audio.play('whoosh');
         title.textContent = r && r.type === 'hat' ? 'A new hat!' : 'Bonus gold!';
-        later(el, () => { stage.classList.add('done'); if (r) showReward(r); }, 520);
+        later(el, () => { stage.classList.add('done'); el.classList.add('revealed'); if (r) showReward(r); }, 520);
       }, 950);
     }
 
     stage.append(rays, title, box, sub, reveal, actions);
-    el.append(stage, button('Close', () => close(), 'small white crate-x'));
+    // Close lives in the modal's own flow under the stage (and hides once the reward buttons show).
+    el.append(stage, button('Close', () => close(), 'white crate-x'));
     render();
     if (left() <= 0) { sub.textContent = 'No crates right now.'; }
   },

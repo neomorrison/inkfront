@@ -142,7 +142,8 @@ async function run(vpName, vp) {
     await settle(600);
     await click('button.btn:has-text("1-2")');
     await settle(600);
-    check(await page.locator('.screen-loadout .scard').count() === 0, 'loadout 1-2: no supplies yet');
+    check(await page.locator('.screen-loadout .scard:not(.lent)').count() === 0, 'loadout 1-2: no owned supplies yet');
+    check(await page.locator('.screen-loadout .scard.lent').count() === 1, 'loadout 1-2: Pencil Rain shown as lent for this battle');
     await click('.screen-loadout button.btn:has-text("Battle")');
     await page.waitForSelector('.hud', { timeout: 8000 });
     await settle(900);

@@ -72,13 +72,30 @@ export const UI = {
     for (const m of this.modals) if (m.def.update) m.def.update(dt, m.el);
   },
 
-  // Short message near the top. kind: 'info' | 'good' | 'bad'
+  // Short message in the bottom-left corner, clear of panel headers and tab rows. At most a few
+  // show at once (fewer on phones); the rest wait in a queue. kind: 'info' | 'good' | 'bad'
+  toastQueue: [],
+  toastShown: 0,
+  toastMax() {
+    try { return window.matchMedia('(max-height: 520px)').matches ? 2 : 3; } catch (e) { return 3; }
+  },
   toast(html, kind = 'info', ms = 2600) {
-    const el = document.createElement('div');
-    el.className = 'toast note toast-' + kind;
-    el.innerHTML = html;
-    this.toastLayer.appendChild(el);
-    setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; }, ms);
-    setTimeout(() => el.remove(), ms + 350);
+    if (this.toastQueue.length >= 8) this.toastQueue.shift();
+    this.toastQueue.push({ html, kind, ms });
+    this.pumpToasts();
+  },
+  pumpToasts() {
+    while (this.toastShown < this.toastMax() && this.toastQueue.length) {
+      const { html, kind, ms } = this.toastQueue.shift();
+      const el = document.createElement('div');
+      el.className = 'toast note toast-' + kind;
+      el.innerHTML = html;
+      this.toastLayer.appendChild(el);
+      this.toastShown++;
+      // A long backlog is shown a little faster so it never drags on.
+      const life = this.toastQueue.length > 1 ? Math.min(ms, 1800) : ms;
+      setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; }, life);
+      setTimeout(() => { el.remove(); this.toastShown--; this.pumpToasts(); }, life + 350);
+    }
   },
 };

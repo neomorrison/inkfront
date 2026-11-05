@@ -84,7 +84,7 @@ UI.register('armory', {
         },
         h('img' + (open ? '' : '.silhouette'), { src: unitIcon(id, { level: lvl, size: 96 }), alt: '' }),
         open ? h('span.at-lv', null, String(lvl)) : ico('lock', 32, 'at-lock'),
-        h('span.at-name', null, open ? def.name : '???'));
+        h('span.at-name' + (open && def.name.length > 8 ? '.long' : ''), null, open ? def.name : '???'));
         if (open && (canAffordUnit(p, id) || p.seen['new.unit.' + id] === false)) b.append(h('div.badge', null, '!'));
         grid.append(b);
       }
@@ -133,9 +133,9 @@ UI.register('armory', {
           if (!can && p.gold < cost) { deny(buy, `Need ${fmt(cost - p.gold)} more`); return; }
           if (!buyUnitUpgrade(p, pick)) return;
           const nl = p.units[pick];
-          buyFx(buy, `Level ${nl}!`, portrait);
+          buyFx(portrait, `Level ${nl}!`, portrait); // over the portrait, never on the price
           const stat = def.perks && def.perks[nl];
-          if (stat) { UI.toast(`Perk unlocked: <b>${stat.name}</b>. ${stat.desc}`, 'good', 3000); Audio.play('unlock'); }
+          if (stat) { UI.toast(`Perk unlocked: <b>${stat.name}</b><span class="toast-more">. ${stat.desc}</span>`, 'good', 3000); Audio.play('unlock'); }
           if (GEAR_TIERS.some((g) => g.level === nl)) { Audio.play('levelup'); }
           draw();
           const pop = body.querySelector('.arm-portrait'); if (pop) replay(pop, 'bounce');
@@ -170,7 +170,7 @@ UI.register('armory', {
           btn = button([h('img', { src: icon('gold', 48), alt: '' }), fmt(cost)], () => {
             if (p.gold < cost) { deny(btn, `Need ${fmt(cost - p.gold)}`); return; }
             if (!buyFortUpgrade(p, id)) return;
-            buyFx(btn, up.desc(p.fort[id]).split(',')[0], card);
+            buyFx(card.querySelector('.uc-icon') || card, up.desc(p.fort[id]).split(',')[0], card);
             draw();
             const nc = body.querySelector(`[data-fort="${id}"]`); if (nc) replay(nc, 'bounce');
           }, 'green buy' + (can ? '' : ' poor'));
@@ -208,7 +208,7 @@ UI.register('armory', {
           btn = button([h('img', { src: icon('gold', 48), alt: '' }), fmt(cost)], () => {
             if (p.gold < cost) { deny(btn, `Need ${fmt(cost - p.gold)}`); return; }
             if (!buySpellUpgrade(p, id)) return;
-            buyFx(btn, `Level ${p.spells[id]}!`, card);
+            buyFx(card.querySelector('.uc-icon') || card, `Level ${p.spells[id]}!`, card);
             draw();
             const nc = body.querySelector(`[data-spell="${id}"]`); if (nc) replay(nc, 'bounce');
           }, 'green buy' + (can ? '' : ' poor'));

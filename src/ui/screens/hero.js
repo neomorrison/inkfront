@@ -78,11 +78,8 @@ UI.register('hero', {
           const locked = p.hero.level < sk.req;
           const maxed = r >= sk.max;
           const can = !locked && !maxed && p.hero.points > 0;
-          const card = h('div.skill.card.plain' + (locked ? '.locked' : '') + (can ? '.can' : '') + (maxed ? '.maxed' : ''), { 'data-skill': sk.id },
-            h('div.sk-top', null, h('b.sk-name.marker', null, sk.name)),
-            h('div.sk-desc' + (r ? '' : '.dim'), null, sk.desc(Math.max(1, r))),
-            h('div.sk-bot', null, pips(r, sk.max)));
-          const plus = button(ico('plus', 48), () => {
+          // The whole card is the button: tap anywhere to spend a point. The + is the visual cue.
+          const spend = () => {
             if (!can) {
               Audio.play('error'); replay(card, 'shake-no');
               floatText(card, locked ? `Reach level ${sk.req}` : maxed ? 'Maxed' : 'No points', 'bad');
@@ -94,7 +91,15 @@ UI.register('hero', {
             sparks(card, 10);
             drawRight(); drawLeft();
             const nc = right.querySelector(`[data-skill="${sk.id}"]`); if (nc) replay(nc, 'bounce');
-          }, 'green icon plus-btn' + (can ? '' : ' off'), { 'aria-label': 'Add point to ' + sk.name });
+          };
+          const card = h('div.skill.card.plain' + (locked ? '.locked' : '') + (can ? '.can' : '') + (maxed ? '.maxed' : '') + (!locked && !maxed && !can ? '.nopts' : ''), {
+            'data-skill': sk.id, onClick: spend,
+            title: can ? `Tap to add a point to ${sk.name}` : locked ? `Unlocks at Captain level ${sk.req}` : maxed ? 'Maxed out' : 'Earn a skill point first',
+          },
+            h('div.sk-top', null, h('b.sk-name.marker', null, sk.name)),
+            h('div.sk-desc' + (r ? '' : '.dim'), null, sk.desc(Math.max(1, r))),
+            h('div.sk-bot', null, pips(r, sk.max)));
+          const plus = h('button.btn.green.icon.plus-btn' + (can ? '' : '.off'), { 'aria-label': 'Add point to ' + sk.name, type: 'button' }, h('span.plus-dot', null, ico('plus', 48)));
           card.querySelector('.sk-top').append(locked ? h('span.sk-req', null, ico('lock', 32), 'Lv ' + sk.req) : maxed ? h('span.pill.yellow', null, 'MAX') : plus);
           col.append(card);
         }

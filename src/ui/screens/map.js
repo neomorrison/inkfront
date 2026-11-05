@@ -14,9 +14,10 @@ import { DOODLE_DRAW } from '../../render/world.js';
 import { PAGES } from '../../data/pages.js';
 import { icon, unitIcon } from '../../render/icons.js';
 import { ico, header, tabBar, goldChip, dispose, starRow, onEsc, track } from './meta_ui.js';
+import './crate.js';
 
 // Node centers in percent of the board: a gentle zig-zag toward the boss.
-const SPOTS = [[9, 66], [26, 32], [43, 66], [59, 32], [74, 64], [90, 44]];
+const SPOTS = [[10, 62], [26, 38], [43, 62], [59, 38], [74, 60], [89, 44]];
 const TONES = ['pink', 'blue', 'green', 'orange', 'purple'];
 
 // Smooth curve through the points (Catmull-Rom converted to cubic beziers).
@@ -114,6 +115,22 @@ UI.register('map', {
         board.append(wrap);
       });
       drawSide(ch, levels);
+      requestAnimationFrame(fitCaps);
+    }
+
+    // Keep every node label inside the page with a little padding (the first and last nodes sit near the edges).
+    function fitCaps() {
+      const br = board.getBoundingClientRect();
+      if (!br.width) return;
+      const pad = 8;
+      for (const cap of board.querySelectorAll('.node-cap')) {
+        cap.style.left = '0px';
+        const r = cap.getBoundingClientRect();
+        let dx = 0;
+        if (r.left < br.left + pad) dx = br.left + pad - r.left;
+        else if (r.right > br.right - pad) dx = br.right - pad - r.right;
+        if (dx) cap.style.left = Math.round(dx) + 'px';
+      }
     }
 
     // Scenery doodles from the battlefield renderer, scattered along the top and bottom edges.
@@ -138,7 +155,7 @@ UI.register('map', {
       };
       requestAnimationFrame(paint);
       if (board.__ro) board.__ro.disconnect();
-      board.__ro = new ResizeObserver(() => paint());
+      board.__ro = new ResizeObserver(() => { paint(); fitCaps(); });
       board.__ro.observe(board);
     }
 
@@ -161,7 +178,10 @@ UI.register('map', {
           h('div', null, h('div.map-foe-name', null, 'Boss'), h('div.boss-name.marker', null, bossDef.name))));
       }
       const into = campaignStars(p) % CRATE_EVERY_STARS;
-      side.append(h('div.crate-meter.probe', { title: 'Every 10 stars and every boss win gives a Supply Crate.' },
+      const waiting = p.crates > 0;
+      side.append(h(waiting ? 'button.crate-meter.probe.ready' : 'div.crate-meter.probe', waiting
+        ? { title: 'Open your Supply Crate', onClick: () => { Audio.play('click'); UI.modal('crate'); } }
+        : { title: 'Every 10 stars and every boss win gives a Supply Crate.' },
         ico('crate', 64),
         h('div.grow', null,
           h('div.crate-meter-t', null, p.crates > 0 ? `${p.crates} crate${p.crates > 1 ? 's' : ''} waiting!` : 'Next crate'),

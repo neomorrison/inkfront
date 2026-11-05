@@ -26,10 +26,11 @@ function prettyDate(key) {
   return `${WEEKDAYS[dt.getDay()]}, ${dt.toLocaleString('en-US', { month: 'long' })} ${d}`;
 }
 
+// The challenge turns over at UTC midnight (src/game/daily.js), the same moment for everyone.
 function untilTomorrow() {
   const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const ms = next - now;
+  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  const ms = Math.max(0, next - now.getTime());
   const hrs = Math.floor(ms / 3600000), mins = Math.floor((ms % 3600000) / 60000);
   return `${hrs}h ${mins}m`;
 }
@@ -44,6 +45,7 @@ UI.register('daily', {
       try { info = DailyMod.dailyInfo(date); } catch (e) { console.error(e); }
     }
     const won = p.daily.lastWin === date;
+    const triedToday = !won && p.daily.lastPlayed === date;
     const streak = p.daily.streak || 0;
     const gold = goldChip(el);
     const canPlay = !!info && !!MODE_BUILDERS.daily;
@@ -78,7 +80,7 @@ UI.register('daily', {
     // ---- play / done
     const play = won
       ? h('div.dl-done.note', null, ico('check', 64), h('div', null, h('b.marker', null, 'Done for today!'), h('div.small-note', null, `Next challenge in ${untilTomorrow()}.`)))
-      : button([ico('menu_armory', 64), h('span', null, 'Play today')], () => {
+      : button([ico('menu_armory', 64), h('span', null, triedToday ? 'Try again' : 'Play today')], () => {
         if (!canPlay) { Audio.play('error'); replay(play, 'shake-no'); UI.toast('Today\'s challenge is not ready yet.', 'info', 1800); return; }
         App.startBattle({ kind: 'daily', date });
       }, 'big green' + (canPlay ? '' : ' poor'));
@@ -86,7 +88,9 @@ UI.register('daily', {
     el.append(
       header({ title: 'Daily', tone: 'green', onBack: () => App.goTitle(), right: [gold.el] }),
       h('div.sheet.plain.mode-sheet', null,
-        h('div.mode-main', null, today, h('div.dl-actions', null, play, h('div.dl-reward.chip.gold.probe', null, h('img.ico', { src: icon('gold', 48), alt: '' }), '+' + reward))),
+        h('div.mode-main', null, today, h('div.dl-actions', null, play,
+          h('div.dl-reward.chip.gold.probe', { title: won ? 'Claimed today' : 'Prize for winning today' }, h('img.ico', { src: icon('gold', 48), alt: '' }), won ? 'Claimed' : '+' + reward),
+          triedToday ? h('div.small-note.dl-tried', null, 'Not this time. Give it another go, the prize is still yours to win.') : null)),
         h('div.mode-side', null, streakCard)));
     onEsc(el, () => App.goTitle());
   },
