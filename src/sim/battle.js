@@ -364,7 +364,7 @@ export class Battle {
       if (!enemy && !ff) continue;
       const d = Math.abs(e.x - x) - e.radius;
       if (d > radius) continue;
-      if (e.flying && y > -60 && !e.data.landed) continue;
+      if (e.flying && y > -60 && !e.data.landed && !e.isBoss) continue; // spells always reach flying bosses
       const fall = 1 - 0.5 * clamp(d / radius, 0, 1);
       this.damage(e, dmg * fall * (enemy ? 1 : ff), {
         source: info.source, team: info.team, kind: 'blast', dir: Math.sign(e.x - x) || 1, kb: (info.kb || 0) * fall, friendly: !enemy,
