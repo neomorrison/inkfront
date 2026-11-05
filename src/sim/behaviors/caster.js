@@ -24,8 +24,17 @@ function startChain(b, u, first, dmg, targets) {
   const hit = new Set([first.id]);
   const fall = u.def.chainFalloff ?? 0.7;
   b.areas.push({
-    kind: 'chain_jump', x: first.x, alive: true, from: first, left: targets - 1, t: JUMP_DELAY, dmg,
+    // segs are kept for the renderer (AREA_DRAW.chain_jump) and fade out after the last jump
+    kind: 'chain_jump', x: first.x, team: u.team, alive: true, from: first, left: targets - 1, t: JUMP_DELAY, dmg, segs: [],
     update(bb, dt) {
+      for (let i = this.segs.length - 1; i >= 0; i--) {
+        this.segs[i].age += dt;
+        if (this.segs[i].age > 0.5) this.segs.splice(i, 1);
+      }
+      if (this.left <= 0) {
+        if (this.segs.length === 0) this.alive = false;
+        return;
+      }
       this.t -= dt;
       if (this.t > 0) return;
       this.t = JUMP_DELAY;
@@ -37,14 +46,16 @@ function startChain(b, u, first, dmg, targets) {
         const d = Math.abs(e.x - f.x) - e.radius;
         if (d < bd) { bd = d; best = e; }
       }
-      if (!best) { this.alive = false; return; }
+      if (!best) { this.left = 0; return; }
       hit.add(best.id);
       this.dmg *= fall;
-      bb.emit('chain', { x1: f.x, y1: f.y - f.height * 0.55, x2: best.x, y2: best.y - best.height * 0.55, z: best.z, team: u.team });
+      const seg = { x1: f.x, y1: f.y - f.height * 0.55, x2: best.x, y2: best.y - best.height * 0.55, z: best.z, age: 0 };
+      this.segs.push(seg);
+      bb.emit('chain', { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2, z: best.z, team: u.team });
       bb.damage(best, this.dmg, { source: u, team: u.team, kind: 'magic', dir: Math.sign(best.x - f.x) || 1, kb: u.kb * 0.5 });
       stunIf(u, best);
       this.from = best;
-      if (--this.left <= 0) this.alive = false;
+      this.left--;
     },
   });
 }
