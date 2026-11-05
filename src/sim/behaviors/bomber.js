@@ -90,6 +90,16 @@ function pickSpot(u, b) {
   return null;
 }
 
+function bombAhead(u, b, tx) {
+  const s = Math.sign(tx - u.x) || u.dir;
+  for (const a of b.byTeam[u.team]) {
+    if (a === u || !a.alive || a.type !== u.type || a.data.exploded) continue;
+    const ahead = (a.x - u.x) * s;
+    if ((ahead > 0 && ahead < 85) || (Math.abs(ahead) < 8 && a.id < u.id)) return true;
+  }
+  return false;
+}
+
 function nearestGap(u, b) {
   let g = Infinity;
   for (const e of b.byTeam[1 - u.team]) {
@@ -136,7 +146,8 @@ BEHAVIORS.bomber = {
         d.fuse = true;
         return;
       }
-      moveToward(u, b, spot.t.x, dt, 1.0);
+      // Hang back behind a bomber that is already going in, so one blast does not chain-pop the pack.
+      moveToward(u, b, spot.t.x, dt, bombAhead(u, b, spot.t.x) ? 0.55 : 1);
       return;
     }
     u.target = null;

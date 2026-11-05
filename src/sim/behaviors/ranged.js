@@ -16,10 +16,12 @@ function bounceFrom(b, p, target) {
   const T = 0.3 + bd / 900;
   const g = 900;
   const ty = best.y - best.height * 0.55;
-  b.projectiles.push(new Projectile({
+  const np = new Projectile({
     x: sx, y: sy, vx: (best.x - sx) / T, vy: (ty - sy - 0.5 * g * T * T) / T, g,
     team: p.team, dmg: p.dmg * 0.5, kind: p.kind, dmgKind: p.dmgKind, source: p.source, kb: 0, z: best.z, bonus: p.bonus,
-  }));
+  });
+  np.hitIds = new Set([target.id]); // do not re-hit the stone's first victim
+  b.projectiles.push(np);
 }
 
 // Default shot: one projectile from def.proj. Projectiles apply def.bonus themselves.

@@ -96,7 +96,7 @@ function tryRevive(u, b, dt) {
   const d = u.data;
   const every = u.def.reviveEvery ?? (u.perks.has('revive') ? 25 : 0);
   if (!every) return;
-  d.reviveT = (d.reviveT ?? every * 0.5) + dt;
+  d.reviveT = (d.reviveT ?? every * 0.7) + dt;
   if (d.reviveT < every) return;
   const g = b.graveyard;
   if (!g) return;
