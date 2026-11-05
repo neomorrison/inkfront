@@ -8,14 +8,26 @@ export function makeTooltip(root) {
   root.append(tip);
   let owner = null;
   let build = null;
+  let anchor = null;
+  let shownAt = 0;
+  const SHOW_MS = 4500; // a tooltip never stays open for long
   const place = () => {
     if (!owner) return;
     const r = owner.getBoundingClientRect();
     const tw = tip.offsetWidth, th = tip.offsetHeight;
-    const above = r.top > th + 16 + 70;
     let x = r.left + r.width / 2 - tw / 2;
     x = Math.max(8, Math.min(innerWidth - tw - 8, x));
-    const y = above ? r.top - th - 12 : r.bottom + 12;
+    let y;
+    const an = typeof anchor === 'function' ? anchor() : anchor;
+    if (an) {
+      // Sit just above the whole row (cards, spells + abilities) so it never covers what you are pressing.
+      const ar = an.getBoundingClientRect();
+      y = ar.top - th - 8;
+      if (y < 60) y = ar.bottom + 8;
+    } else {
+      const above = r.top > th + 16 + 70;
+      y = above ? r.top - th - 12 : r.bottom + 12;
+    }
     tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   };
   const refresh = () => {
@@ -24,22 +36,31 @@ export function makeTooltip(root) {
     if (tip.__html !== html) { tip.innerHTML = html; tip.__html = html; }
     place();
   };
+  const hide = () => { owner = null; anchor = null; tip.classList.remove('show'); };
   return {
     el: tip,
-    attach(el, fn) {
+    // anchor: optional element (or function returning one) whose top edge the tooltip sits above.
+    attach(el, fn, anchorEl) {
       el.addEventListener('pointerenter', (e) => {
         if (e.pointerType !== 'mouse') return;
         owner = el;
         build = fn;
+        anchor = anchorEl || null;
+        shownAt = performance.now();
         tip.__html = null;
         refresh();
         tip.classList.add('show');
       });
-      el.addEventListener('pointerleave', () => { if (owner === el) { owner = null; tip.classList.remove('show'); } });
-      el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && owner === el) { owner = null; tip.classList.remove('show'); } });
+      el.addEventListener('pointerleave', () => { if (owner === el) hide(); });
+      // A press (mouse, touch or pen) closes it; it only returns when the pointer comes back.
+      el.addEventListener('pointerdown', () => { if (owner === el) hide(); });
     },
-    tick() { if (owner) refresh(); },
-    hide() { owner = null; tip.classList.remove('show'); },
+    tick() {
+      if (!owner) return;
+      if (performance.now() - shownAt > SHOW_MS) { hide(); return; }
+      refresh();
+    },
+    hide,
   };
 }
 

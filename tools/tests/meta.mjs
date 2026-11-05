@@ -73,6 +73,8 @@ async function run(vpName, vp) {
     await click('.screen-loadout button.btn:has-text("Battle")');
     await page.waitForSelector('.hud', { timeout: 8000 });
     await settle(1200);
+    // the first-battle how-to card holds the battle until it is dismissed
+    await page.evaluate(() => window.App.session.hud && window.App.session.hud.closeQuickCard && window.App.session.hud.closeQuickCard());
     check(await page.evaluate(() => !!window.App.session && !window.App.session.isDemo), 'battle: started from loadout');
     check(await page.evaluate(() => !!window.App.session.ach), 'achievements: battle trackers attached');
 

@@ -52,6 +52,8 @@ export class Session {
     this.actionT = 0;
     this.camMoving = false;
     this.steer = 0;
+    this.steerTotal = 0; // seconds the player has really held a steering key or touch arrow (tutorial)
+    this.holds = new Set(); // reasons the loop is held without the pause menu (how-to card, portrait phone)
     this.tickers = []; // fn(dt) called every update (tutorial)
     this.dragging = false;
   }
@@ -65,8 +67,29 @@ export class Session {
       this.hud = UI.show('hud', { session: this });
     }
     this.cam.centerOn(this.battle.teams[0].fort.x + this.cam.viewW * 0.32);
+    this.watchOrientation();
     for (const hook of SESSION_HOOKS) hook(this);
     bus.emit('battleStart', this);
+  }
+
+  // The portrait "turn your phone" overlay covers the game: hold the battle while it shows.
+  watchOrientation() {
+    if (this.isDemo || typeof matchMedia !== 'function') return;
+    let mq = null;
+    try { mq = matchMedia('(orientation: portrait) and (max-width: 700px)'); } catch (e) { return; }
+    const apply = () => this.hold('orient', mq.matches);
+    if (mq.addEventListener) mq.addEventListener('change', apply); else if (mq.addListener) mq.addListener(apply);
+    this.offOrient = () => { if (mq.removeEventListener) mq.removeEventListener('change', apply); else if (mq.removeListener) mq.removeListener(apply); };
+    apply();
+  }
+
+  // Hold the loop for a reason other than the pause menu. The pause menu state is left alone.
+  hold(reason, on) {
+    if (this.isDemo) return;
+    if (on) this.holds.add(reason); else this.holds.delete(reason);
+    if (!this.ended) this.app.loop.paused = this.paused || this.holds.size > 0;
+    if (!on && !this.holds.size) Input.clearPresses();
+    bus.emit('pause', this.paused || this.holds.size > 0);
   }
 
   listen(fn) {
@@ -138,7 +161,7 @@ export class Session {
   togglePause(force) {
     if (this.isDemo || this.ended) return;
     this.paused = force ?? !this.paused;
-    this.app.loop.paused = this.paused;
+    this.app.loop.paused = this.paused || this.holds.size > 0;
     if (this.paused) UI.modal('pause', { session: this });
     else { UI.closeModal('pause'); Input.clearPresses(); }
     bus.emit('pause', this.paused);
@@ -161,6 +184,7 @@ export class Session {
   }
 
   setSpeed(v) {
+    if (this.ended) return; // the slow-motion ending owns the time scale
     this.speed = v;
     this.app.loop.timeScale = v;
     if (this.profile.settings) { this.profile.settings.speed = v; Save.save(); }
@@ -172,6 +196,7 @@ export class Session {
 
   surrender() {
     if (this.ended) return;
+    this.holds.clear();
     this.app.loop.paused = false;
     if (this.paused) { this.paused = false; bus.emit('pause', false); }
     UI.closeModal('pause');
@@ -190,6 +215,7 @@ export class Session {
     if (this.touchHero) mv = this.touchHero;
     ctl.heroMove = this.ended ? 0 : mv;
     this.steer = this.ended ? 0 : mv;
+    if (this.ended) { this.endedKeys(); return; }
     if (mv && b.teams[0].hero) { this.heroCamT = 2.5; this.camIdle = 0; this.focusX = null; }
     if (Input.take('KeyQ')) this.heroAbility('rally');
     if (Input.take('KeyE')) this.heroAbility('slam');
@@ -218,9 +244,16 @@ export class Session {
     if (Input.take('KeyT')) this.toggleSpeed();
   }
 
+  // After the battle ends the slow-motion beat ignores every command key.
+  endedKeys() {
+    Input.take('KeyQ', 'KeyE', 'KeyR', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyF', 'KeyZ', 'KeyX', 'KeyC', 'KeyT', 'Space', 'KeyV', 'Escape', 'KeyP');
+    for (const k of UNIT_KEYS) Input.take(k);
+  }
+
   update(dt) {
     const b = this.battle;
     if (this.paused && !this.isDemo) return;
+    if (!this.isDemo && !this.ended && this.steer) this.steerTotal += dt;
     if (!this.isDemo) this.readKeys();
     if (this.hitStop > 0) this.hitStop -= dt;
     else b.update(dt);
@@ -368,6 +401,8 @@ export class Session {
 
   destroy() {
     this.listeners.length = 0;
+    this.offOrient && this.offOrient();
+    this.holds.clear();
     if (this.paused) { this.paused = false; bus.emit('pause', false); }
     this.app.loop.paused = false;
     this.app.loop.timeScale = 1;

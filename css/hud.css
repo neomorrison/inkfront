@@ -19,6 +19,11 @@
 .hud-res .chip.pulse { animation: ink-pulse .45s ease-out; }
 .hud-res .chip.flash { animation: chip-flash .5s ease-in-out; }
 .hud-res .chip.warn b { color: var(--red); }
+.hud-res .chip { position: relative; }
+/* ink at its cap: a small MAX tag under the chip, no layout shift */
+.hud-res .chip .max-tag { display: none; position: absolute; right: 8px; bottom: -11px; font-style: normal; font-family: var(--font-marker); font-size: 11px; line-height: 14px; padding: 0 6px; background: var(--note-yellow); border: 2px solid var(--ink-dark); border-radius: 8px; box-shadow: 0 2px 0 var(--ink-dark); pointer-events: none; }
+.hud-res .chip.maxed .max-tag { display: block; }
+.hud-res .chip.maxed b { color: var(--red); }
 @keyframes ink-pulse { 0% { transform: scale(1); box-shadow: 0 3px 0 var(--ink-dark); } 35% { transform: scale(1.14) rotate(-2deg); box-shadow: 0 3px 0 var(--ink-dark), 0 0 0 7px rgba(58,99,219,.4); } 100% { transform: scale(1); box-shadow: 0 3px 0 var(--ink-dark); } }
 @keyframes chip-flash { 0%,100% { background: #dfe8ff; transform: none; } 20%,60% { background: #ffb3ac; transform: translateX(-4px); } 40%,80% { background: #ffb3ac; transform: translateX(4px); } }
 .hud-res .chip.pop.flash { animation-name: chip-flash-pop; }
@@ -136,12 +141,13 @@
 .target-hint { bottom: calc(100% + 6px); pointer-events: none; }
 .hud-notice { bottom: calc(100% + 54px); background: #ffd3cf; opacity: 0; transition: opacity .18s, transform .18s; transform: translateX(-50%) translateY(8px); }
 .hud-notice.show { opacity: 1; transform: translateX(-50%); }
+.hud-notice.info { background: var(--note-yellow); }
 .hud-vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 52%, rgba(209,52,43,.55) 100%); transition: opacity .3s; }
 .hud-vignette.on { animation: vig 1.1s ease-in-out infinite; }
 .hud-vignette.crit { animation-duration: .6s; }
 @keyframes vig { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
 .hud-float { position: absolute; font-size: 22px; pointer-events: none; color: var(--ink); text-shadow: 2px 0 0 #fff, -2px 0 0 #fff, 0 2px 0 #fff, 0 -2px 0 #fff; animation: float-up 1s ease-out forwards; z-index: 4; }
-@keyframes float-up { from { transform: translate(-50%, 0) scale(.8); opacity: 1; } to { transform: translate(-50%, -34px) scale(1.15); opacity: 0; } }
+@keyframes float-up { from { transform: translate(-50%, 0) scale(.8); opacity: 1; } to { transform: translate(-50%, 30px) scale(1.1); opacity: 0; } }
 
 /* spell reticle: follows the pointer, sized from the spell radius or width times zoom */
 .hud-reticle { position: absolute; left: 0; top: 0; pointer-events: none; display: none; z-index: 3; }
@@ -188,7 +194,7 @@
 @keyframes tut-in { from { transform: translateX(-50%) scale(.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 
 /* ---------- pause, how to play, draft ---------- */
-.pause-card { padding: 26px 36px 26px 66px; display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: min(860px, 96vw); max-height: 94vh; overflow-y: auto; }
+.pause-card { padding: 28px 36px 26px 66px; display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: visible; }
 .pause-card h1 { font-size: 44px; text-align: center; }
 .pause-card .col { align-items: stretch; gap: 12px; }
 .pause-card .col .btn { width: 100%; }
@@ -211,7 +217,7 @@
 .howto-float .howto-card h1 { font-size: 32px; }
 .howto-float .howto-list { font-size: 18px; line-height: 21px; }
 .howto-float .howto-card .btn.big { font-size: 26px; padding: 8px 30px; }
-.howto-card { padding: 24px 30px 22px 62px; display: flex; flex-direction: column; gap: 10px; width: min(640px, 94vw); max-height: 94vh; overflow-y: auto; }
+.howto-card { padding: 28px 30px 22px 62px; display: flex; flex-direction: column; gap: 10px; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: visible; }
 .howto-card h1 { font-size: 38px; text-align: center; }
 .howto-list { font-family: var(--font-hand); display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 0; padding: 0; list-style: none; font-size: 20px; line-height: 23px; }
 .howto-list li { display: flex; gap: 10px; align-items: flex-start; }
@@ -279,33 +285,32 @@
   .ability { width: 46px; height: 46px; }
   .spell .num, .ability .num { font-size: 16px; }
   .hud-banner { font-size: 28px; top: 40%; }
-  .hud-notice, .target-hint { font-size: 17px; line-height: 20px; padding: 3px 10px; }
-  .hud-notice { bottom: calc(100% + 46px); }
+  .hud-notice, .target-hint { font-size: 17px; line-height: 20px; padding: 3px 10px; position: fixed; bottom: auto; }
+  /* sky band, upper middle: below the clocks and the tutorial note, above the ground row where units fight */
+  .target-hint { top: calc(var(--sub-top) + 62px); }
+  .hud-notice { top: calc(var(--sub-top) + 62px); }
+  .target-hint:not(.hidden) ~ .hud-notice { top: calc(var(--sub-top) + 98px); }
   .tut-note { font-size: 17px; line-height: 20px; padding: 5px 12px 6px; max-width: min(430px, 56vw); top: calc(var(--sub-top) + 26px); }
   .tut-skip { top: -14px; }
-  .pause-card { padding: 12px 20px 14px 52px; gap: 4px; width: min(780px, 96vw); }
-  .pause-card h1 { font-size: 26px; line-height: 28px; }
+  .pause-card { padding: 20px 20px 14px 50px; gap: 6px; width: min(760px, calc(100vw - 44px)); max-height: calc(100vh - 44px); }
+  .pause-card h1 { font-size: 24px; line-height: 26px; }
   .pause-body { gap: 18px; }
   .pause-left { flex: 0 0 52%; gap: 8px; }
   .pause-right { gap: 6px; }
   .pause-main { gap: 8px; }
   .pause-main .btn.big, .pause-main .btn { font-size: 18px; padding: 6px 10px; min-height: 44px; }
-  .pause-toggles .btn { min-width: 0; flex: 1 1 auto; font-size: 14px; padding: 4px 8px; }
+  .pause-toggles { flex-wrap: nowrap; gap: 6px; }
+  .pause-toggles .btn { min-width: 0; flex: 1 1 0; font-size: 13px; padding: 4px 4px; white-space: nowrap; }
   .pause-controls { font-size: 14px; line-height: 16px; gap: 2px 8px; padding-top: 2px; }
   .pause-controls dt { font-size: 12px; }
   .tabs .btn { min-height: 44px; }
-  .howto-float { top: calc(var(--sub-top) + 20px); }
-  .howto-float .howto-card { width: min(600px, 66vw); padding: 6px 16px 6px 44px; gap: 1px; }
-  .howto-float .howto-card h1 { font-size: 18px; line-height: 18px; margin-top: -2px; }
+  .howto-float { top: calc(var(--sub-top) + 24px); }
+  .howto-float .howto-card { width: min(600px, 66vw); padding: 17px 16px 10px 44px; gap: 2px; }
+  .howto-float .howto-card h1 { font-size: 18px; line-height: 20px; margin: 0; }
   .howto-float .howto-list { font-size: 15px; line-height: 16px; gap: 3px 10px; }
   .howto-float .howto-list li b { width: 22px; height: 22px; line-height: 16px; }
   .howto-float .howto-card .btn.big { font-size: 18px; padding: 4px 22px; min-height: 44px; box-shadow: 0 4px 0 var(--ink-dark); }
-  .howto-float { position: absolute; left: 50%; top: calc(var(--sub-top) + 36px); transform: translateX(-50%); pointer-events: auto; z-index: 7; animation: tut-in .35s cubic-bezier(.2,1.6,.4,1); }
-.howto-float .howto-card { width: min(560px, 66vw); padding: 18px 26px 18px 58px; gap: 8px; }
-.howto-float .howto-card h1 { font-size: 32px; }
-.howto-float .howto-list { font-size: 18px; line-height: 21px; }
-.howto-float .howto-card .btn.big { font-size: 26px; padding: 8px 30px; }
-.howto-card { padding: 14px 22px 14px 52px; gap: 6px; }
+  .howto-card { padding: 22px 22px 16px 52px; gap: 6px; }
   .howto-card h1 { font-size: 26px; }
   .howto-list { font-size: 16px; line-height: 18px; gap: 5px 12px; }
   .howto-list li b { width: 24px; height: 24px; line-height: 18px; font-size: 13px; border-width: 2px; }
@@ -321,6 +326,24 @@
 }
 @media (max-width: 1000px) and (min-height: 521px) {
   .hud-sys .btn.cam { min-width: 60px; }
+}
+/* Big monitors: scale the CSS-laid-out HUD like the menus (screens.css). Parts placed by script
+   (tooltip, floating numbers, tutorial ring and arrow, reticle) stay in screen pixels and get bigger type instead. */
+@media (min-width: 1500px) and (min-height: 850px) {
+  .hud-top, .hud-bottom, .hud-hero, .hud-sub, .hud-boss, .hud-banner, .tut-note, .howto-float,
+  .pause-card, .modal-howto .howto-card, .draft-title, .draft-sub, .draft-row { zoom: 1.25; }
+  .hud-tip { font-size: 21px; line-height: 25px; max-width: 340px; }
+  .hud-tip h4 { font-size: 22px; }
+  .hud-float { font-size: 28px; }
+  .tut-label { font-size: 20px; }
+}
+@media (min-width: 1800px) and (min-height: 1000px) {
+  .hud-top, .hud-bottom, .hud-hero, .hud-sub, .hud-boss, .hud-banner, .tut-note, .howto-float,
+  .pause-card, .modal-howto .howto-card, .draft-title, .draft-sub, .draft-row { zoom: 1.45; }
+  .hud-tip { font-size: 24px; line-height: 28px; max-width: 390px; }
+  .hud-tip h4 { font-size: 25px; }
+  .hud-float { font-size: 32px; }
+  .tut-label { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hud-vignette.on, .spell.ready, .tut-ring, .tut-arrow svg { animation: none; }
