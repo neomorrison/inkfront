@@ -18,6 +18,17 @@ import { unitUpgradeCost, fortUpgradeCost, spellUpgradeCost, FORT_UPGRADES, UNIT
 import { heroXpToNext, HERO_MAX_LEVEL } from '../src/data/hero.js';
 import { SPELL_ORDER, SPELL_MAX_LEVEL } from '../src/data/spells.js';
 import { heroAbilityReady } from '../src/sim/behaviors/hero.js';
+import { fitSquad } from '../src/game/squad.js';
+
+// How the bot picks a squad: SIM_SQUAD=newest (heaviest new units first), oldest, or
+// balanced (default: a front line, ranged and a healer first, then the newest units).
+function squadOrder(combat) {
+  const mode = process.env.SIM_SQUAD || 'balanced';
+  if (mode === 'newest') return combat.slice().reverse();
+  if (mode === 'oldest') return combat.slice();
+  const core = ['shieldbearer', 'archer', 'medic', 'spearman', 'brawler'].filter((id) => combat.includes(id));
+  return [...core, ...combat.slice().reverse().filter((id) => !core.includes(id))];
+}
 import { roleWeights } from '../src/sim/ai.js';
 
 const args = process.argv.slice(2);
@@ -49,7 +60,8 @@ export function expectedProfile(levelId, o = {}) {
   }
   const chapter = LEVEL_BY_ID[levelId].chapter;
   const combat = PLAYER_ROSTER.filter((id) => id !== 'scribe' && p.unlockedUnits.includes(id));
-  p.loadout.units = combat.slice(-8);
+  // Newest units first, as many as the squad points allow (no War Table yet).
+  p.loadout.units = fitSquad(p, squadOrder(combat));
   p.loadout.spells = SPELL_ORDER.filter((id) => p.unlockedSpells.includes(id)).slice(-3);
   for (const id of p.unlockedUnits) p.units[id] = 1;
   for (const id of p.unlockedSpells) p.spells[id] = 1;
@@ -66,7 +78,7 @@ export function expectedProfile(levelId, o = {}) {
     }
     return false;
   });
-  const fortOrder = ['walls', 'turret', 'income', 'start_ink', 'pop', 'wells', 'scribes'];
+  const fortOrder = ['walls', 'turret', 'income', 'start_ink', 'pop', 'squad', 'wells', 'scribes'];
   spend(gold * ECON.fort, (left, pay) => {
     const lows = fortOrder.filter((k) => (p.fort[k] || 0) < FORT_UPGRADES[k].max).sort((a, c) => (p.fort[a] || 0) - (p.fort[c] || 0));
     for (const k of lows) {
@@ -85,11 +97,12 @@ export function expectedProfile(levelId, o = {}) {
   });
   if (o.unitLevel != null) for (const id of p.unlockedUnits) p.units[id] = id === 'scribe' ? Math.min(o.unitLevel, 6) : o.unitLevel;
   if (o.under) for (const id of p.unlockedUnits) p.units[id] = Math.max(1, (p.units[id] || 1) - o.under);
-  if (o.fortLevel != null) for (const k in p.fort) p.fort[k] = k === 'scribes' ? Math.min(4, Math.floor(o.fortLevel / 2)) : k === 'pop' ? Math.min(8, o.fortLevel) : o.fortLevel;
+  if (o.fortLevel != null) for (const k in p.fort) p.fort[k] = k === 'scribes' ? Math.min(4, Math.floor(o.fortLevel / 2)) : k === 'pop' ? Math.min(8, o.fortLevel) : k === 'squad' ? Math.min(3, o.fortLevel) : o.fortLevel;
   let lv = 1, rest = xp;
   while (lv < HERO_MAX_LEVEL && rest >= heroXpToNext(lv)) { rest -= heroXpToNext(lv); lv++; }
   p.hero.level = o.heroLevel ?? lv;
   p.hero.points = 0;
+  p.loadout.units = fitSquad(p, squadOrder(combat));
   return p;
 }
 

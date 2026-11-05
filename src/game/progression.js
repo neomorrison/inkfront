@@ -5,7 +5,9 @@ import { UNITS } from '../data/units.js';
 import { LEVELS, LEVEL_BY_ID, starsFor, HARD_MODE } from '../data/levels.js';
 import { heroXpToNext, HERO_MAX_LEVEL } from '../data/hero.js';
 import { unitUpgradeCost, UNIT_MAX_LEVEL, fortUpgradeCost, FORT_UPGRADES, spellUpgradeCost } from '../data/upgrades.js';
-import { MAX_LOADOUT, PLAYER_ROSTER } from '../data/units.js';
+import { MAX_LOADOUT, PLAYER_ROSTER, crewOf } from '../data/units.js';
+import { squadCap, squadUsed } from './squad.js';
+export { squadCap, squadUsed, fitSquad } from './squad.js';
 import { SPELL_MAX_LEVEL, MAX_SPELL_SLOTS } from '../data/spells.js';
 import { CRATE_HATS } from '../data/hats.js';
 import { HERO_SKILL_BY_ID } from '../data/hero.js';
@@ -52,7 +54,8 @@ export function unlockUnit(p, id) {
   if (p.unlockedUnits.includes(id)) return false;
   p.unlockedUnits.push(id);
   p.units[id] = p.units[id] || 1;
-  if (id !== 'scribe' && p.loadout.units.length < MAX_LOADOUT && !p.loadout.units.includes(id)) p.loadout.units.push(id);
+  if (id !== 'scribe' && p.loadout.units.length < MAX_LOADOUT && !p.loadout.units.includes(id)
+    && squadUsed(p.loadout.units) + crewOf(id) <= squadCap(p)) p.loadout.units.push(id);
   p.seen['new.unit.' + id] = false;
   return true;
 }

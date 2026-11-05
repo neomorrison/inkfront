@@ -48,6 +48,11 @@ export const FORT_UPGRADES = {
     desc: (lv) => `Army size ${20 + lv * 3}`,
     apply: (cfg, lv) => { cfg.popCap += 3 * lv; },
   },
+  squad: {
+    id: 'squad', name: 'War Table', icon: 'squad', max: 3, base: 400, growth: 2.2,
+    desc: (lv) => `Squad points +${lv}`,
+    apply: () => {}, // read by squadCap in src/game/progression.js
+  },
   wells: {
     id: 'wells', name: 'Deeper Wells', icon: 'wells', max: 10, base: 130, growth: 1.45,
     desc: (lv) => `+${lv * 10}% ink per Scribe trip`,
@@ -55,7 +60,7 @@ export const FORT_UPGRADES = {
   },
 };
 
-export const FORT_UPGRADE_ORDER = ['walls', 'turret', 'income', 'start_ink', 'scribes', 'pop', 'wells'];
+export const FORT_UPGRADE_ORDER = ['walls', 'turret', 'income', 'start_ink', 'scribes', 'pop', 'squad', 'wells'];
 
 export function fortUpgradeCost(id, level) {
   const u = FORT_UPGRADES[id];

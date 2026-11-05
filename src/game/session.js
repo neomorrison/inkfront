@@ -12,7 +12,7 @@ import { buildBattleConfig } from './modes.js';
 import { Save } from './save.js';
 import { applyBattleResult } from './progression.js';
 
-const UNIT_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
+const UNIT_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus'];
 const SPELL_KEYS = ['KeyZ', 'KeyX', 'KeyC'];
 
 // SESSION_HOOKS: fn(session) called after a session starts (tutorial, trackers, modes add listeners).

@@ -13,7 +13,7 @@ import { unitIcon, icon } from '../../render/icons.js';
 import { howtoCard, markHowtoSeen } from './pause.js';
 import { makeTooltip, makeReticle, drawMinimap } from './hud_parts.js';
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'];
 const SPELL_KEYS = ['Z', 'X', 'C'];
 const ARROW_L = '<svg viewBox="0 0 24 24"><path d="M15.5 3.5 6 12l9.5 8.5v-5.2h2.5v-6.6h-2.5z" transform="translate(-0.5 0)"/></svg>';
 const ARROW_R = '<svg viewBox="0 0 24 24"><path d="M8.5 3.5 18 12l-9.5 8.5v-5.2H6v-6.6h2.5z" transform="translate(0.5 0)"/></svg>';

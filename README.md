@@ -24,7 +24,7 @@ Draw an army in blue ink, lead it with your Captain, throw school supplies at th
 ## Controls
 | | Keyboard and mouse | Touch |
 |---|---|---|
-| Draw units | 1-9 or click a card (right-click a card to refund) | Tap a card |
+| Draw units | the number key on the card (1-9, 0, -) or click it (right-click a card to refund) | Tap a card |
 | Army orders | W charge, S defend, F hold here, right-click to plant the flag | Stance buttons, long-press the battlefield to plant the flag |
 | Captain | A / D to walk, Q, E, R abilities | Arrow buttons and ability buttons |
 | Supplies | Z, X, C cast at the mouse, or click then click the battlefield | Tap the spell, then tap the battlefield |

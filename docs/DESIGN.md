@@ -13,7 +13,7 @@ A stick figure war fought in the margins of a notebook. You draw an army in blue
 Side view lane battle. Your fort on the left, the enemy fort on the right. Destroy theirs (or win the level's special condition).
 
 - **Ink** is the battle currency. Passive trickle plus **Scribes** who walk to ink wells, fill bottles, and carry ink home (+20 per trip). Two wells per side, one rich contested well in the middle. Scribes run home when enemy fighters get close unless the army is charging.
-- **Unit cards** (keys 1-9) cost ink and take build time; tapping several times queues them (right-click a card refunds one). Army size (pop) caps how many are alive.
+- **Unit cards** (keys 1-9, 0, -) cost ink and take build time; tapping several times queues them (right-click a card refunds one). Army size (pop) caps how many are alive.
 - **Stances**: DEFEND (S) holds a line in front of your fort, HOLD (F, or right-click / long-press the battlefield) holds at a flag you plant, CHARGE (W) pushes to the enemy fort. Units sort into formation rows: tanks front, melee, ranged, support, siege.
 - **The Captain** (hero): A/D or arrows (touch: on-screen arrows) to walk him; he fights whatever he reaches. Q Rally Cry (hero level 2), E Ink Slam (level 4), R Inkstorm when the Fury meter is full (level 7). After 5 s without input he rejoins the army AI. Respawns at the fort.
 - **Supplies (spells)**: up to 3 per battle, keys Z/X/C or tap then tap the battlefield. Free, on cooldown, start half charged.
@@ -39,6 +39,8 @@ Unlock order through the campaign: Scribe and Brawler at start, then Slinger, Sh
 | Catapult | siege | 780 range boulders, 3x vs forts, dead zone up close |
 | Colossus | heavy | Frontal club splash, huge knockback |
 | Ninja | assassin | Invisible until he strikes, hunts ranged/support |
+
+**Squad points** (pick your crew, Clash style): every unit you bring costs squad points (Brawler/Slinger 1; Shieldbearer, Spearman, Archer, Bomber, Medic 2; Rider, Doodler, Ninja 3; Catapult 4; Colossus 5; Scribe free). Capacity starts at 7, +3 for each chapter boss beaten (1-6 to 4-6) and +1 per War Table level (Armory, 3 levels), so 22 at most against 30 for the full roster: you always choose. Up to 10 combat units per squad. Old saves are trimmed to fit (later picks drop first).
 
 Upgrades: levels 1-10 with gold (+9% hp, +8% damage per level). Gear shows on the unit: helmet at 4, plume at 7, gold trim at 10. Perks at 3/6/9 (see data).
 

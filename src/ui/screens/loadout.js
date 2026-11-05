@@ -1,4 +1,4 @@
-// Pre-battle loadout: level intro, enemy intel, modifiers, unit picker (max 8), spell picker
+// Pre-battle loadout: level intro, enemy intel, modifiers, squad picker (squad points), spell picker
 // (max 3) and the Captain summary. Picks are saved in the profile as they change.
 import { UI } from '../ui.js';
 import { h, button, clear } from '../dom.js';
@@ -6,7 +6,9 @@ import { App } from '../../app.js';
 import { Save } from '../../game/save.js';
 import { Audio } from '../../audio/audio.js';
 import { LEVEL_BY_ID, LEVELS, MODIFIERS, HARD_MODE } from '../../data/levels.js';
-import { UNITS, PLAYER_ROSTER, MAX_LOADOUT } from '../../data/units.js';
+import { UNITS, PLAYER_ROSTER, MAX_LOADOUT, SQUAD, crewOf } from '../../data/units.js';
+import { squadCap, squadUsed, fitSquad } from '../../game/squad.js';
+import { FORT_UPGRADES } from '../../data/upgrades.js';
 import { SPELLS, SPELL_ORDER, MAX_SPELL_SLOTS } from '../../data/spells.js';
 import { FACTIONS } from '../../data/factions.js';
 import { heroXpToNext } from '../../data/hero.js';
@@ -72,7 +74,7 @@ UI.register('loadout', {
     const chip = button([h('img', { src: hatIcon(p.hero.hat || 'captain', 64), alt: '' }), h('span', null, 'Lv ' + p.hero.level)], () => App.go('hero'), 'small white captain-chip', { title: 'Captain' });
     if (p.hero.points > 0) setBadge(chip, true);
     const army = h('div.lo-col.lo-army', null,
-      h('div.lo-h', null, 'Your army', countEl, h('span.small-note', null, `${tapWord} to pick up to ${MAX_LOADOUT}`), chip),
+      h('div.lo-h', null, 'Your squad', countEl, h('span.small-note', null, `${tapWord} to add or remove. Bigger units cost more squad points.`), chip),
       h('div.scroll.pscroll', null, grid, note));
 
     // ---- right column
@@ -90,17 +92,32 @@ UI.register('loadout', {
       h('div.lo-h', null, 'Supplies', spellCount),
       spellGrid, spellNote, heroBtn, go);
 
+    const cap = squadCap(p);
     function save() {
       p.loadout.units = p.loadout.units.filter((id) => p.unlockedUnits.includes(id));
       p.loadout.units.sort((a, b) => PLAYER_ROSTER.indexOf(a) - PLAYER_ROSTER.indexOf(b));
       Save.save();
     }
+    // Old saves (or a squad picked before the cap existed) may hold more than fits.
+    p.loadout.units = fitSquad(p, p.loadout.units.filter((id) => p.unlockedUnits.includes(id)));
+    save();
+
+    // How the squad grows: the next boss not yet beaten, then the War Table.
+    function growHint() {
+      const boss = SQUAD.bossLevels.find((id) => !(p.levels[id] && p.levels[id].cleared));
+      const table = (p.fort.squad || 0) < FORT_UPGRADES.squad.max;
+      if (boss) return `Beat ${boss} for +${SQUAD.perBoss} squad points.`;
+      if (table) return 'Build the War Table in the Armory for more squad points.';
+      return '';
+    }
 
     function drawArmy() {
       clear(grid);
       const picked = p.loadout.units;
-      countEl.textContent = `${picked.length}/${MAX_LOADOUT}`;
-      countEl.classList.toggle('full', picked.length >= MAX_LOADOUT);
+      const used = squadUsed(picked);
+      countEl.textContent = `${used}/${cap} pts`;
+      countEl.title = 'Squad points used';
+      countEl.classList.toggle('full', used >= cap);
       // Scribe is always along for the ride.
       grid.classList.toggle('roomy', PLAYER_ROSTER.filter((id) => id !== 'scribe' && p.unlockedUnits.includes(id)).length <= 3);
       grid.append(card('scribe', { fixed: true }));
@@ -108,21 +125,29 @@ UI.register('loadout', {
       const locked = PLAYER_ROSTER.filter((id) => id !== 'scribe' && !p.unlockedUnits.includes(id));
       for (const id of open) grid.append(card(id));
       for (const id of locked.slice(0, 2)) grid.append(card(id, { locked: true }));
-      note.textContent = locked.length > 2 ? `${locked.length - 2} more units to find.` : locked.length ? '' : '';
+      note.textContent = [locked.length > 2 ? `${locked.length - 2} more units to find.` : '', growHint()].filter(Boolean).join(' ');
     }
 
     function card(id, { fixed = false, locked = false } = {}) {
       const def = UNITS[id];
       const lvl = p.units[id] || 1;
       const on = fixed || p.loadout.units.includes(id);
-      const b = h('button.pcard' + (on ? '.on' : '') + (locked ? '.locked' : '') + (fixed ? '.fixed' : ''), {
+      const crew = crewOf(id);
+      const fits = on || squadUsed(p.loadout.units) + crew <= cap;
+      const b = h('button.pcard' + (on ? '.on' : '') + (locked ? '.locked' : '') + (fixed ? '.fixed' : '') + (!locked && !fits ? '.nofit' : ''), {
         title: def.name, 'data-unit': id,
         onClick: () => {
           if (locked || fixed) { Audio.play('error'); replay(b, 'shake-no'); return; }
           const list = p.loadout.units;
           const i = list.indexOf(id);
           if (i >= 0) list.splice(i, 1);
-          else if (list.length >= MAX_LOADOUT) { Audio.play('error'); replay(b, 'shake-no'); UI.toast(`Army is full (${MAX_LOADOUT}). ${tapWord} a unit to remove it.`, 'info', 1800); return; }
+          else if (list.length >= MAX_LOADOUT) { Audio.play('error'); replay(b, 'shake-no'); UI.toast(`Squad is full (${MAX_LOADOUT} units). ${tapWord} a unit to remove it.`, 'info', 1800); return; }
+          else if (squadUsed(list) + crew > cap) {
+            Audio.play('error'); replay(b, 'shake-no');
+            const free = cap - squadUsed(list);
+            UI.toast(`${def.name} needs ${crew} squad point${crew === 1 ? '' : 's'}, you have ${free} left. ${tapWord} a unit to remove it.`, 'info', 2400);
+            return;
+          }
           else list.push(id);
           Audio.play(i >= 0 ? 'click' : 'toggle');
           save(); drawArmy();
@@ -134,6 +159,7 @@ UI.register('loadout', {
       locked ? ico('lock', 48, 'pc-lock') : h('span.pc-lv', null, 'Lv ' + lvl),
       on && !fixed ? h('span.pc-tick', null, ico('check', 48)) : null,
       h('span.pc-name', null, locked ? unlockHint('unit', id) : def.name),
+      locked || fixed ? null : h('span.pc-crew', { title: `${crew} squad point${crew === 1 ? '' : 's'}` }, crew + ' pt'),
       locked ? null : h('span.pc-cost', null, h('img', { src: icon('ink', 32), alt: '' }), String(def.cost)));
       return b;
     }

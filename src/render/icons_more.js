@@ -88,6 +88,15 @@ def('upgrade_pop', (ctx) => {
   poly(ctx, [[50, 8], [72, 14], [50, 22]]); fillStroke(ctx, '#f2b01e');
   ctx.lineWidth = 3.5; line(ctx, 22, 70, 78, 70);
 });
+def('upgrade_squad', (ctx) => {
+  // War table: a map on a table with three army pins
+  line(ctx, 22, 62, 16, 92, 7); line(ctx, 78, 62, 84, 92, 7);
+  poly(ctx, [[8, 50], [92, 50], [84, 66], [16, 66]]); fillStroke(ctx, '#d9a066');
+  poly(ctx, [[20, 22], [80, 22], [86, 52], [14, 52]]); fillStroke(ctx, '#ffe7a8');
+  ctx.save(); ctx.setLineDash([4, 6]); ctx.lineWidth = 3.5; ctx.strokeStyle = '#d1342b';
+  ctx.beginPath(); ctx.moveTo(26, 44); ctx.quadraticCurveTo(46, 26, 72, 34); ctx.stroke(); ctx.restore();
+  circle(ctx, 30, 38, 7, '#1f47c2'); circle(ctx, 50, 32, 7, '#1f47c2'); circle(ctx, 70, 40, 7, '#d1342b');
+});
 def('upgrade_wells', (ctx) => {
   poly(ctx, [[14, 36], [50, 10], [86, 36]]); fillStroke(ctx, '#d1342b');
   line(ctx, 24, 36, 24, 60, 7); line(ctx, 76, 36, 76, 60, 7);

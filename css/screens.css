@@ -291,6 +291,9 @@
 .pcard .pc-cost { position: absolute; left: 0; right: 0; bottom: 3px; display: flex; justify-content: center; align-items: center; gap: 3px; font-size: 14px; color: var(--ink); line-height: 1; }
 .pcard .pc-cost img { width: 15px; height: 15px; }
 .pcard.locked { filter: grayscale(1) opacity(.62); cursor: not-allowed; }
+.pcard .pc-crew { position: absolute; top: 24px; left: 5px; font-size: 12px; line-height: 15px; color: var(--ink-dark); background: var(--note-orange); border: 2px solid var(--ink-dark); border-radius: 7px; padding: 0 4px; }
+.pcard.nofit:not(.on) { filter: saturate(.4) opacity(.7); }
+.pcard.nofit:not(.on) .pc-crew { background: #ffb3b3; }
 .pcard.locked .pc-name { bottom: 8px; color: var(--red); font-size: 12px; }
 .sgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .scard {
@@ -321,6 +324,7 @@
   .pgrid { --pc-w: 70px; --pc-h: 92px; gap: 9px 8px; }
   .pcard .pc-img { top: 18px; height: calc(var(--pc-h) - 54px); }
   .pcard .pc-lv { font-size: 10px; line-height: 13px; top: 2px; left: 3px; padding: 0 3px; border-width: 1.5px; }
+  .pcard .pc-crew { font-size: 10px; line-height: 13px; top: 19px; left: 3px; padding: 0 3px; border-width: 1.5px; }
   .pcard .pc-lock { width: 16px; height: 16px; }
   .pcard .pc-name { font-size: 10px; bottom: 15px; } .pcard .pc-cost { font-size: 11px; bottom: 2px; } .pcard .pc-cost img { width: 11px; height: 11px; }
   .pcard { background-image: linear-gradient(180deg, transparent 0 17px, #f09a9a 17px 18px, transparent 18px), repeating-linear-gradient(180deg, transparent 0 13px, #dbe7f5 13px 14px); }
@@ -334,7 +338,7 @@
   .pgrid { --pc-w: 56px; --pc-h: 74px; gap: 9px 6px; }
   .pgrid.roomy { --pc-w: 84px; --pc-h: 110px; gap: 12px 12px; } .pgrid.roomy .pc-name { font-size: 12px; bottom: 19px; } .pgrid.roomy .pc-cost { font-size: 13px; } .pgrid.roomy .pc-lv { font-size: 11px; line-height: 14px; }
   .captain-chip { font-size: 13px; padding: 1px 6px 1px 3px; } .captain-chip img { width: 20px; height: 20px; }
-  .pcard .pc-name { font-size: 8.5px; bottom: 13px; } .pcard .pc-cost { font-size: 10px; } .pcard .pc-lv { font-size: 9px; line-height: 12px; }
+  .pcard .pc-name { font-size: 8.5px; bottom: 13px; } .pcard .pc-cost { font-size: 10px; } .pcard .pc-lv { font-size: 9px; line-height: 12px; } .pcard .pc-crew { font-size: 9px; line-height: 12px; top: 16px; }
   .scard { aspect-ratio: auto; height: 58px; } .scard img { top: 2px; height: 36px; } .scard .sc-name { font-size: 9px; white-space: normal; line-height: .95; bottom: 2px; letter-spacing: -.3px; font-size: 8.5px; }
   .sgrid { gap: 7px; } .scard .sc-key { width: 20px; height: 20px; line-height: 14px; font-size: 11px; top: -7px; left: -7px; border-width: 2px; }
   .captain-card { padding: 3px 8px; gap: 6px; font-size: 12px; } .captain-card .captain-hat { width: 34px; height: 34px; } .captain-card .bar { height: 8px; }

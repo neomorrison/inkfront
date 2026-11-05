@@ -388,7 +388,17 @@ export const UNITS = {
 // Player-facing roster order (cards, armory). Scribe is always first.
 export const PLAYER_ROSTER = ['scribe', 'brawler', 'slinger', 'shieldbearer', 'spearman', 'archer', 'bomber', 'medic', 'rider', 'doodler', 'catapult', 'colossus', 'ninja'];
 
-export const MAX_LOADOUT = 8; // combat unit cards per battle, plus the Scribe
+export const MAX_LOADOUT = 10; // combat unit cards per battle (keys 2-9, 0, -), plus the Scribe
+
+// Squad points: every combat unit you bring takes some, and the squad has a capacity, so you
+// choose a crew instead of bringing everything. Capacity grows with chapter bosses beaten and
+// the War Table fort upgrade (see squadCap in src/game/progression.js).
+export const CREW = {
+  scribe: 0, brawler: 1, slinger: 1, shieldbearer: 2, spearman: 2, archer: 2, bomber: 2, medic: 2,
+  rider: 3, doodler: 3, ninja: 3, catapult: 4, colossus: 5,
+};
+export const SQUAD = { base: 7, perBoss: 3, bossLevels: ['1-6', '2-6', '3-6', '4-6'], perTable: 1 };
+export const crewOf = (id) => CREW[id] ?? 2;
 
 export function unitDef(id) {
   const d = UNITS[id];

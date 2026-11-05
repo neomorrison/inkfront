@@ -20,7 +20,7 @@ UI.register('confirm', {
 });
 
 const KEYS = [
-  ['1-9', 'Draw a unit'], ['Z X C', 'Aim a supply, then click'], ['W', 'Charge'], ['S', 'Defend'], ['F', 'Hold a flag at the Captain'],
+  ['1-0, -', 'Draw a unit (the key on its card)'], ['Z X C', 'Aim a supply, then click'], ['W', 'Charge'], ['S', 'Defend'], ['F', 'Hold a flag at the Captain'],
   ['A D', 'Walk the Captain'], ['Q', 'Rally Cry'], ['E', 'Ink Slam'], ['R', 'Inkstorm'], ['Space', 'Follow the Captain'], ['T', 'Speed 1x / 2x'], ['Esc', 'Pause'],
 ];
 const TOUCH = [

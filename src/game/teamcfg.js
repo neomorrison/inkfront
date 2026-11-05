@@ -6,6 +6,7 @@ import { FORT_UPGRADES, PLAYER_BASE } from '../data/upgrades.js';
 import { HERO_ABILITIES, HERO_GROWTH } from '../data/hero.js';
 import { HARD_MODE } from '../data/levels.js';
 import { applyHeroSkills } from './hero_skills.js';
+import { fitSquad } from './squad.js';
 
 // opts: { loadout?: {units, spells}, roster? (force a roster), noHero, noSpells, unitLevelOverride }
 export function playerTeamConfig(profile, opts = {}) {
@@ -16,7 +17,9 @@ export function playerTeamConfig(profile, opts = {}) {
     if (lv > 0) FORT_UPGRADES[id].apply(cfg, lv);
   }
   const loadout = opts.loadout || profile.loadout;
-  const roster = opts.roster || ['scribe', ...loadout.units.filter((id) => profile.unlockedUnits.includes(id))];
+  // Campaign loadouts are trimmed to the squad points; daily/endless pass their own loadout.
+  const units = loadout.units.filter((id) => profile.unlockedUnits.includes(id));
+  const roster = opts.roster || ['scribe', ...(opts.loadout ? units : fitSquad(profile, units))];
   cfg.roster = Array.from(new Set(roster));
   cfg.unitLevels = {};
   for (const id of cfg.roster) cfg.unitLevels[id] = opts.unitLevelOverride ?? (profile.units[id] || 1);

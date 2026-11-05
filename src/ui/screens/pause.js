@@ -113,7 +113,7 @@ export function howtoCard(touch, label, onDone) {
   return h('div.howto-card.paper.tape', null,
     h('h1.marker', null, 'How to Play'),
     h('ul.howto-list', null,
-      item('1', touch ? 'Tap a card to draw a unit. It costs ink.' : 'Click a card or press 1-9 to draw a unit.'),
+      item('1', touch ? 'Tap a card to draw a unit. It costs ink.' : 'Click a card or press its number key to draw a unit.'),
       item('2', 'Scribes carry ink home. Draw them first.'),
       item('3', 'Charge attacks the fort. Defend holds near yours.'),
       item('4', touch ? 'Hold the arrows to walk your Captain.' : 'Walk your Captain with A and D.'),
